@@ -52,13 +52,24 @@ class DatasetController extends Controller
             // Kumpulkan nilai dari kolom ini di beberapa baris sample
             $values = array_column($sampleRows, $index);
             $isNumeric = true;
+            $hasAtLeastOneValue = false;
 
             foreach ($values as $value) {
                 if ($value === null || $value === '') continue;
-                if (!is_numeric($value)) {
+                $hasAtLeastOneValue = true;
+
+                // Normalisasi format angka Indonesia (koma sebagai desimal) ke format standar (titik)
+                $normalizedValue = str_replace(',', '.', (string) $value);
+
+                if (!is_numeric($normalizedValue)) {
                     $isNumeric = false;
                     break;
                 }
+            }
+
+            // Kalau semua nilai sample kosong, anggap kategorik (default aman)
+            if (!$hasAtLeastOneValue) {
+                $isNumeric = false;
             }
 
             DatasetColumn::create([

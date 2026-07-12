@@ -14,9 +14,13 @@
                 </div>
             @endif
 
-            <div class="mb-4">
+            <div class="mb-4 flex justify-between items-center">
                 <a href="{{ route('datasets.index') }}" class="text-indigo-600 hover:underline">
                     &larr; Kembali ke Daftar Dataset
+                </a>
+                <a href="{{ route('analysis.create', $dataset->id) }}"
+                   class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                    Analisis Statistik Deskriptif
                 </a>
             </div>
 
