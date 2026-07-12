@@ -61,7 +61,7 @@
             </div>
 
             
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6 mb-6">
                 <h3 class="text-lg font-medium mb-1">Distribusi Frekuensi</h3>
                 <p class="text-sm text-gray-500 mb-4">Jumlah kemunculan tiap kategori — untuk kolom kategorik</p>
 
@@ -81,6 +81,44 @@
                         <button type="submit"
                                 class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
                             Hitung Distribusi Frekuensi
+                        </button>
+                    </form>
+                <?php endif; ?>
+            </div>
+
+            
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
+                <h3 class="text-lg font-medium mb-1">Scatter Plot</h3>
+                <p class="text-sm text-gray-500 mb-4">Lihat hubungan antara 2 kolom numerik</p>
+
+                <?php if($numericColumns->count() < 2): ?>
+                    <p class="text-gray-500 text-sm">Dibutuhkan minimal 2 kolom numerik untuk membuat scatter plot.</p>
+                <?php else: ?>
+                    <form action="<?php echo e(route('analysis.scatter', $dataset->id)); ?>" method="POST">
+                        <?php echo csrf_field(); ?>
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Sumbu X</label>
+                                <select name="column_x" required class="w-full border-gray-300 rounded shadow-sm">
+                                    <option value="">-- Pilih Kolom --</option>
+                                    <?php $__currentLoopData = $numericColumns; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $col): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                        <option value="<?php echo e($col->column_name); ?>"><?php echo e($col->column_name); ?></option>
+                                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Sumbu Y</label>
+                                <select name="column_y" required class="w-full border-gray-300 rounded shadow-sm">
+                                    <option value="">-- Pilih Kolom --</option>
+                                    <?php $__currentLoopData = $numericColumns; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $col): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                        <option value="<?php echo e($col->column_name); ?>"><?php echo e($col->column_name); ?></option>
+                                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit"
+                                class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+                            Buat Scatter Plot
                         </button>
                     </form>
                 <?php endif; ?>

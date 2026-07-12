@@ -137,6 +137,56 @@ class AnalysisController extends Controller
         return view('analysis.categorical', compact('dataset', 'columnName', 'frequencies', 'total'));
     }
 
+    // Proses scatter plot untuk melihat hubungan 2 kolom numerik
+    public function scatter(Request $request, Dataset $dataset)
+    {
+        if ($dataset->user_id !== Auth::id()) {
+            abort(403);
+        }
+
+        $request->validate([
+            'column_x' => 'required|string',
+            'column_y' => 'required|string|different:column_x',
+        ]);
+
+        $columnX = $request->column_x;
+        $columnY = $request->column_y;
+
+        $fullPath = storage_path('app/public/' . $dataset->file_path);
+        $rows = Excel::toArray([], $fullPath);
+        $headerRow = $rows[0][0] ?? [];
+        $dataRows = array_slice($rows[0], 1);
+
+        $indexX = array_search($columnX, $headerRow);
+        $indexY = array_search($columnY, $headerRow);
+
+        if ($indexX === false || $indexY === false) {
+            return back()->withErrors(['column_x' => 'Kolom tidak ditemukan.']);
+        }
+
+        // Ambil pasangan nilai (x, y) yang keduanya valid numerik
+        $points = [];
+        foreach ($dataRows as $row) {
+            $valX = $row[$indexX] ?? null;
+            $valY = $row[$indexY] ?? null;
+
+            if ($valX === null || $valX === '' || $valY === null || $valY === '') continue;
+
+            $normX = str_replace(',', '.', (string) $valX);
+            $normY = str_replace(',', '.', (string) $valY);
+
+            if (is_numeric($normX) && is_numeric($normY)) {
+                $points[] = ['x' => (float) $normX, 'y' => (float) $normY];
+            }
+        }
+
+        if (count($points) === 0) {
+            return back()->withErrors(['column_x' => 'Tidak ada pasangan data numerik valid untuk kedua kolom ini.']);
+        }
+
+        return view('analysis.scatter', compact('dataset', 'columnX', 'columnY', 'points'));
+    }
+
     /**
      * Hitung modus. Kalau multimodal, ambil nilai yang pertama kali muncul
      * (konsisten dengan perilaku default Excel MODE/MODE.SNGL).

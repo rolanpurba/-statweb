@@ -18,6 +18,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/datasets/{dataset}/analysis', [AnalysisController::class, 'create'])->name('analysis.create');
     Route::post('/datasets/{dataset}/analysis/descriptive', [AnalysisController::class, 'descriptive'])->name('analysis.descriptive');
     Route::post('/datasets/{dataset}/analysis/categorical', [AnalysisController::class, 'categorical'])->name('analysis.categorical');
+    Route::post('/datasets/{dataset}/analysis/scatter', [AnalysisController::class, 'scatter'])->name('analysis.scatter');
 });
 
 Route::get('/dashboard', function () {
