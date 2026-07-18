@@ -31,47 +31,19 @@ class AnalysisController extends Controller
             abort(403);
         }
 
-        $request->validate([
-            'column' => 'required|string',
-        ]);
+        $request->validate(['column' => 'required|string']);
 
         $columnName = $request->column;
+        $values = $this->getNumericValues($dataset, $columnName);
 
-        // Baca file dataset
-        $fullPath = storage_path('app/public/' . $dataset->file_path);
-        $rows = Excel::toArray([], $fullPath);
-        $headerRow = $rows[0][0] ?? [];
-        $dataRows = array_slice($rows[0], 1);
-
-        // Cari index kolom yang dipilih
-        $columnIndex = array_search($columnName, $headerRow);
-
-        if ($columnIndex === false) {
-            return back()->withErrors(['column' => 'Kolom tidak ditemukan.']);
-        }
-
-        // Ambil semua nilai numerik dari kolom itu, buang yang kosong/bukan angka
-        $values = [];
-        foreach ($dataRows as $row) {
-            $val = $row[$columnIndex] ?? null;
-            if ($val !== null && $val !== '') {
-                // Normalisasi format angka Indonesia (koma) ke format standar (titik)
-                $normalized = str_replace(',', '.', (string) $val);
-                if (is_numeric($normalized)) {
-                    $values[] = (float) $normalized;
-                }
-            }
-        }
-
-        if (count($values) === 0) {
-            return back()->withErrors(['column' => 'Tidak ada data numerik valid di kolom ini.']);
+        if (is_string($values)) {
+            return back()->withErrors(['column' => $values]);
         }
 
         if (count($values) < 2) {
-            return back()->withErrors(['column' => 'Data numerik valid di kolom ini hanya ' . count($values) . ' baris. Minimal dibutuhkan 2 baris data untuk menghitung standar deviasi dan variansi.']);
+            return back()->withErrors(['column' => 'Minimal dibutuhkan 2 baris data.']);
         }
 
-        // Hitung statistik deskriptif
         $stats = [
             'n'       => count($values),
             'mean'    => Average::mean($values),
@@ -86,22 +58,19 @@ class AnalysisController extends Controller
             'q3'      => $this->quartileInclusive($values, 3),
         ];
 
-        // Hitung data histogram untuk visualisasi
         $histogram = $this->calculateHistogram($values);
 
         return view('analysis.descriptive', compact('dataset', 'columnName', 'stats', 'values', 'histogram'));
     }
 
-    // Proses hitung frekuensi kategori (untuk bar chart data kategorik)
+    // Proses hitung frekuensi kategori
     public function categorical(Request $request, Dataset $dataset)
     {
         if ($dataset->user_id !== Auth::id()) {
             abort(403);
         }
 
-        $request->validate([
-            'column' => 'required|string',
-        ]);
+        $request->validate(['column' => 'required|string']);
 
         $columnName = $request->column;
 
@@ -109,19 +78,16 @@ class AnalysisController extends Controller
         $rows = Excel::toArray([], $fullPath);
         $headerRow = $rows[0][0] ?? [];
         $dataRows = array_slice($rows[0], 1);
-
         $columnIndex = array_search($columnName, $headerRow);
 
         if ($columnIndex === false) {
             return back()->withErrors(['column' => 'Kolom tidak ditemukan.']);
         }
 
-        // Hitung frekuensi tiap kategori
         $frequencies = [];
         foreach ($dataRows as $row) {
             $val = trim((string) ($row[$columnIndex] ?? ''));
             if ($val === '') continue;
-
             $frequencies[$val] = ($frequencies[$val] ?? 0) + 1;
         }
 
@@ -129,15 +95,13 @@ class AnalysisController extends Controller
             return back()->withErrors(['column' => 'Tidak ada data valid di kolom ini.']);
         }
 
-        // Urutkan dari frekuensi terbesar
         arsort($frequencies);
-
         $total = array_sum($frequencies);
 
         return view('analysis.categorical', compact('dataset', 'columnName', 'frequencies', 'total'));
     }
 
-    // Proses scatter plot untuk melihat hubungan 2 kolom numerik
+    // Proses scatter plot
     public function scatter(Request $request, Dataset $dataset)
     {
         if ($dataset->user_id !== Auth::id()) {
@@ -164,124 +128,617 @@ class AnalysisController extends Controller
             return back()->withErrors(['column_x' => 'Kolom tidak ditemukan.']);
         }
 
-        // Ambil pasangan nilai (x, y) yang keduanya valid numerik
         $points = [];
         foreach ($dataRows as $row) {
             $valX = $row[$indexX] ?? null;
             $valY = $row[$indexY] ?? null;
-
             if ($valX === null || $valX === '' || $valY === null || $valY === '') continue;
-
             $normX = str_replace(',', '.', (string) $valX);
             $normY = str_replace(',', '.', (string) $valY);
-
             if (is_numeric($normX) && is_numeric($normY)) {
                 $points[] = ['x' => (float) $normX, 'y' => (float) $normY];
             }
         }
 
         if (count($points) === 0) {
-            return back()->withErrors(['column_x' => 'Tidak ada pasangan data numerik valid untuk kedua kolom ini.']);
+            return back()->withErrors(['column_x' => 'Tidak ada pasangan data numerik valid.']);
         }
 
         return view('analysis.scatter', compact('dataset', 'columnX', 'columnY', 'points'));
     }
 
+    // Proses uji normalitas
+    public function normality(Request $request, Dataset $dataset)
+    {
+        if ($dataset->user_id !== Auth::id()) {
+            abort(403);
+        }
+
+        $request->validate(['column' => 'required|string']);
+
+        $columnName = $request->column;
+        $values = $this->getNumericValues($dataset, $columnName);
+
+        if (is_string($values)) {
+            return back()->withErrors(['column' => $values]);
+        }
+
+        if (count($values) < 3) {
+            return back()->withErrors(['column' => 'Minimal dibutuhkan 3 data untuk uji normalitas.']);
+        }
+
+        $n = count($values);
+
+        if ($n < 50) {
+            $result = $this->shapiroWilk($values);
+            $testName = 'Shapiro-Wilk';
+        } else {
+            $result = $this->kolmogorovSmirnov($values);
+            $testName = 'Kolmogorov-Smirnov (Lilliefors)';
+        }
+
+        $qqPoints = $this->calculateQQPoints($values);
+
+        return view('analysis.normality', compact('dataset', 'columnName', 'n', 'testName', 'result', 'qqPoints'));
+    }
+
+    // Uji-t Satu Sampel
+    public function tTestOneSample(Request $request, Dataset $dataset)
+    {
+        if ($dataset->user_id !== Auth::id()) {
+            abort(403);
+        }
+
+        $request->validate([
+            'column'    => 'required|string',
+            'test_value'=> 'required|numeric',
+        ]);
+
+        $columnName = $request->column;
+        $testValue  = (float) $request->test_value;
+        $values = $this->getNumericValues($dataset, $columnName);
+
+        if (is_string($values)) {
+            return back()->withErrors(['column' => $values]);
+        }
+
+        if (count($values) < 2) {
+            return back()->withErrors(['column' => 'Minimal dibutuhkan 2 baris data untuk uji-t.']);
+        }
+
+        $n      = count($values);
+        $mean   = Average::mean($values);
+        $stdDev = Descriptive::standardDeviation($values, Descriptive::SAMPLE);
+        $se     = $stdDev / sqrt($n);
+        $t      = ($mean - $testValue) / $se;
+        $df     = $n - 1;
+        $pValue = 2 * (1 - $this->tCDF(abs($t), $df)); // two-tailed
+
+        $result = [
+            'n'          => $n,
+            'mean'       => round($mean, 4),
+            'std_dev'    => round($stdDev, 4),
+            'se'         => round($se, 4),
+            't'          => round($t, 4),
+            'df'         => $df,
+            'p_value'    => round($pValue, 4),
+            'test_value' => $testValue,
+            'conclusion' => $pValue < 0.05
+                ? "Terdapat perbedaan signifikan antara rata-rata sampel ({$mean}) dengan nilai uji ({$testValue}) pada α = 0.05 (tolak H₀)"
+                : "Tidak terdapat perbedaan signifikan antara rata-rata sampel ({$mean}) dengan nilai uji ({$testValue}) pada α = 0.05 (gagal tolak H₀)",
+            'significant'=> $pValue < 0.05,
+        ];
+
+        return view('analysis.ttest_one_sample', compact('dataset', 'columnName', 'result'));
+    }
+
+    // Uji-t Independen (2 kelompok berbeda)
+    public function tTestIndependent(Request $request, Dataset $dataset)
+    {
+        if ($dataset->user_id !== Auth::id()) {
+            abort(403);
+        }
+
+        $request->validate([
+            'column_value' => 'required|string',
+            'column_group' => 'required|string|different:column_value',
+        ]);
+
+        $columnValue = $request->column_value;
+        $columnGroup = $request->column_group;
+
+        $fullPath = storage_path('app/public/' . $dataset->file_path);
+        $rows = Excel::toArray([], $fullPath);
+        $headerRow = $rows[0][0] ?? [];
+        $dataRows  = array_slice($rows[0], 1);
+
+        $indexValue = array_search($columnValue, $headerRow);
+        $indexGroup = array_search($columnGroup, $headerRow);
+
+        if ($indexValue === false || $indexGroup === false) {
+            return back()->withErrors(['column_value' => 'Kolom tidak ditemukan.']);
+        }
+
+        // Pisahkan data berdasarkan kelompok
+        $groups = [];
+        foreach ($dataRows as $row) {
+            $val   = $row[$indexValue] ?? null;
+            $group = trim((string) ($row[$indexGroup] ?? ''));
+            if ($val === null || $val === '' || $group === '') continue;
+            $norm = str_replace(',', '.', (string) $val);
+            if (!is_numeric($norm)) continue;
+            $groups[$group][] = (float) $norm;
+        }
+
+        if (count($groups) !== 2) {
+            return back()->withErrors(['column_group' => 'Kolom kelompok harus memiliki tepat 2 kategori berbeda. Ditemukan: ' . count($groups) . ' kategori.']);
+        }
+
+        $groupNames = array_keys($groups);
+        $g1 = $groups[$groupNames[0]];
+        $g2 = $groups[$groupNames[1]];
+
+        if (count($g1) < 2 || count($g2) < 2) {
+            return back()->withErrors(['column_group' => 'Setiap kelompok minimal harus memiliki 2 data.']);
+        }
+
+        $n1 = count($g1);
+        $n2 = count($g2);
+        $mean1 = Average::mean($g1);
+        $mean2 = Average::mean($g2);
+        $var1  = Descriptive::sampleVariance($g1);
+        $var2  = Descriptive::sampleVariance($g2);
+
+        // Welch's t-test (tidak asumsi varian sama, lebih robust)
+        $se  = sqrt($var1 / $n1 + $var2 / $n2);
+        $t   = ($mean1 - $mean2) / $se;
+
+        // Welch-Satterthwaite df
+        $df = (($var1/$n1 + $var2/$n2) ** 2) /
+            ((($var1/$n1) ** 2) / ($n1 - 1) + (($var2/$n2) ** 2) / ($n2 - 1));
+        $df = (int) floor($df);
+
+        $pValue = 2 * (1 - $this->tCDF(abs($t), $df));
+
+        $result = [
+            'group1'      => $groupNames[0],
+            'group2'      => $groupNames[1],
+            'n1'          => $n1,
+            'n2'          => $n2,
+            'mean1'       => round($mean1, 4),
+            'mean2'       => round($mean2, 4),
+            'std1'        => round(sqrt($var1), 4),
+            'std2'        => round(sqrt($var2), 4),
+            't'           => round($t, 4),
+            'df'          => $df,
+            'p_value'     => round($pValue, 4),
+            'conclusion'  => $pValue < 0.05
+                ? "Terdapat perbedaan rata-rata yang signifikan antara kelompok {$groupNames[0]} dan {$groupNames[1]} pada α = 0.05 (tolak H₀)"
+                : "Tidak terdapat perbedaan rata-rata yang signifikan antara kelompok {$groupNames[0]} dan {$groupNames[1]} pada α = 0.05 (gagal tolak H₀)",
+            'significant' => $pValue < 0.05,
+        ];
+
+        return view('analysis.ttest_independent', compact('dataset', 'columnValue', 'columnGroup', 'result'));
+    }
+
+    // Uji-t Berpasangan
+    public function tTestPaired(Request $request, Dataset $dataset)
+    {
+        if ($dataset->user_id !== Auth::id()) {
+            abort(403);
+        }
+
+        $request->validate([
+            'column_1' => 'required|string',
+            'column_2' => 'required|string|different:column_1',
+        ]);
+
+        $column1 = $request->column_1;
+        $column2 = $request->column_2;
+
+        $fullPath = storage_path('app/public/' . $dataset->file_path);
+        $rows = Excel::toArray([], $fullPath);
+        $headerRow = $rows[0][0] ?? [];
+        $dataRows  = array_slice($rows[0], 1);
+
+        $index1 = array_search($column1, $headerRow);
+        $index2 = array_search($column2, $headerRow);
+
+        if ($index1 === false || $index2 === false) {
+            return back()->withErrors(['column_1' => 'Kolom tidak ditemukan.']);
+        }
+
+        // Ambil pasangan nilai yang keduanya valid
+        $val1 = [];
+        $val2 = [];
+        foreach ($dataRows as $row) {
+            $v1 = $row[$index1] ?? null;
+            $v2 = $row[$index2] ?? null;
+            if ($v1 === null || $v1 === '' || $v2 === null || $v2 === '') continue;
+            $n1 = str_replace(',', '.', (string) $v1);
+            $n2 = str_replace(',', '.', (string) $v2);
+            if (is_numeric($n1) && is_numeric($n2)) {
+                $val1[] = (float) $n1;
+                $val2[] = (float) $n2;
+            }
+        }
+
+        if (count($val1) < 2) {
+            return back()->withErrors(['column_1' => 'Minimal dibutuhkan 2 pasangan data valid.']);
+        }
+
+        // Hitung selisih (d = x1 - x2)
+        $differences = array_map(fn($a, $b) => $a - $b, $val1, $val2);
+        $n    = count($differences);
+        $dMean = Average::mean($differences);
+        $dStd  = Descriptive::standardDeviation($differences, Descriptive::SAMPLE);
+        $se    = $dStd / sqrt($n);
+        $t     = $dMean / $se;
+        $df    = $n - 1;
+        $pValue = 2 * (1 - $this->tCDF(abs($t), $df));
+
+        $result = [
+            'n'          => $n,
+            'mean1'      => round(Average::mean($val1), 4),
+            'mean2'      => round(Average::mean($val2), 4),
+            'd_mean'     => round($dMean, 4),
+            'd_std'      => round($dStd, 4),
+            'se'         => round($se, 4),
+            't'          => round($t, 4),
+            'df'         => $df,
+            'p_value'    => round($pValue, 4),
+            'conclusion' => $pValue < 0.05
+                ? "Terdapat perbedaan signifikan antara {$column1} dan {$column2} pada α = 0.05 (tolak H₀)"
+                : "Tidak terdapat perbedaan signifikan antara {$column1} dan {$column2} pada α = 0.05 (gagal tolak H₀)",
+            'significant'=> $pValue < 0.05,
+        ];
+
+        return view('analysis.ttest_paired', compact('dataset', 'column1', 'column2', 'result'));
+    }
+
     /**
-     * Hitung modus. Kalau multimodal, ambil nilai yang pertama kali muncul
-     * (konsisten dengan perilaku default Excel MODE/MODE.SNGL).
+     * CDF distribusi t — aproksimasi menggunakan regularized incomplete beta function
+     */
+    private function tCDF(float $t, int $df): float
+    {
+        $x = $df / ($df + $t * $t);
+        $a = $df / 2.0;
+        $b = 0.5;
+        $ibeta = $this->regularizedIncompleteBeta($x, $a, $b);
+        return 1 - 0.5 * $ibeta;
+    }
+
+    /**
+     * Regularized incomplete beta function — pakai continued fraction (Lentz method)
+     */
+    /**
+     * Regularized incomplete beta function — pakai continued fraction (Lentz method)
+     */
+    private function regularizedIncompleteBeta(float $x, float $a, float $b): float
+    {
+        if ($x <= 0) return 0.0;
+        if ($x >= 1) return 1.0;
+
+        $lbeta = $this->logBeta($a, $b);
+        $front = exp(log($x) * $a + log(1 - $x) * $b - $lbeta) / $a;
+
+        if ($x > ($a + 1) / ($a + $b + 2)) {
+            return 1 - $this->regularizedIncompleteBeta(1 - $x, $b, $a);
+        }
+
+        $maxIter = 200;
+        $eps = 1e-10;
+        $C = 1.0;
+        $D = 1 - ($a + $b) * $x / ($a + 1);
+        if (abs($D) < 1e-30) $D = 1e-30;
+        $D = 1 / $D;
+        $f = $D;
+
+        for ($m = 1; $m <= $maxIter; $m++) {
+            // Even step
+            $numerator = $m * ($b - $m) * $x / (($a + 2*$m - 1) * ($a + 2*$m));
+            $D = 1 + $numerator * $D;
+            if (abs($D) < 1e-30) $D = 1e-30;
+            $C = 1 + $numerator / $C;
+            if (abs($C) < 1e-30) $C = 1e-30;
+            $D = 1 / $D;
+            $f *= $C * $D;
+
+            // Odd step
+            $numerator = -($a + $m) * ($a + $b + $m) * $x / (($a + 2*$m) * ($a + 2*$m + 1));
+            $D = 1 + $numerator * $D;
+            if (abs($D) < 1e-30) $D = 1e-30;
+            $C = 1 + $numerator / $C;
+            if (abs($C) < 1e-30) $C = 1e-30;
+            $D = 1 / $D;
+            $delta = $C * $D;
+            $f *= $delta;
+
+            if (abs($delta - 1) < $eps) break;
+        }
+
+        return $front * $f;
+    }
+
+    /**
+     * Log Beta function — pakai Lanczos approximation untuk log gamma
+     */
+    private function logBeta(float $a, float $b): float
+    {
+        return $this->logGamma($a) + $this->logGamma($b) - $this->logGamma($a + $b);
+    }
+
+    /**
+     * Log Gamma function — Lanczos approximation
+     * Pengganti lgamma() yang tidak ada di PHP built-in
+     */
+    private function logGamma(float $x): float
+    {
+        // Koefisien Lanczos (g=7, n=9)
+        $g = 7;
+        $c = [
+            0.99999999999980993,
+            676.5203681218851,
+            -1259.1392167224028,
+            771.32342877765313,
+            -176.61502916214059,
+            12.507343278686905,
+            -0.13857109526572012,
+            9.9843695780195716e-6,
+            1.5056327351493116e-7,
+        ];
+
+        if ($x < 0.5) {
+            // Reflection formula: Gamma(x)*Gamma(1-x) = pi/sin(pi*x)
+            return log(M_PI / sin(M_PI * $x)) - $this->logGamma(1 - $x);
+        }
+
+        $x -= 1;
+        $a = $c[0];
+        $t = $x + $g + 0.5;
+
+        for ($i = 1; $i < 9; $i++) {
+            $a += $c[$i] / ($x + $i);
+        }
+
+        return 0.5 * log(2 * M_PI) + ($x + 0.5) * log($t) - $t + log($a);
+    }
+
+    /**
+     * Helper: baca data numerik dari kolom dataset
+     * Return array nilai kalau sukses, string error kalau gagal
+     */
+    private function getNumericValues(Dataset $dataset, string $columnName): array|string
+    {
+        $fullPath = storage_path('app/public/' . $dataset->file_path);
+        $rows = Excel::toArray([], $fullPath);
+        $headerRow = $rows[0][0] ?? [];
+        $dataRows = array_slice($rows[0], 1);
+
+        $columnIndex = array_search($columnName, $headerRow);
+        if ($columnIndex === false) {
+            return 'Kolom tidak ditemukan.';
+        }
+
+        $values = [];
+        foreach ($dataRows as $row) {
+            $val = $row[$columnIndex] ?? null;
+            if ($val !== null && $val !== '') {
+                $normalized = str_replace(',', '.', (string) $val);
+                if (is_numeric($normalized)) {
+                    $values[] = (float) $normalized;
+                }
+            }
+        }
+
+        if (count($values) === 0) {
+            return 'Tidak ada data numerik valid di kolom ini.';
+        }
+
+        return $values;
+    }
+
+    /**
+     * Shapiro-Wilk Test
+     */
+    private function shapiroWilk(array $values): array
+    {
+        $x = $values;
+        sort($x);
+        $n = count($x);
+        $mean = Average::mean($x);
+
+        $m = [];
+        for ($i = 1; $i <= $n; $i++) {
+            $p = ($i - 0.375) / ($n + 0.25);
+            $m[] = $this->normalQuantile($p);
+        }
+
+        $mDotM = array_sum(array_map(fn($mi) => $mi * $mi, $m));
+        $sqrtMDotM = sqrt($mDotM);
+
+        $numerator = 0;
+        $k = (int) floor($n / 2);
+        for ($i = 0; $i < $k; $i++) {
+            $ai = $m[$n - 1 - $i] / $sqrtMDotM;
+            $numerator += $ai * ($x[$n - 1 - $i] - $x[$i]);
+        }
+
+        $denominator = 0;
+        foreach ($x as $xi) {
+            $denominator += ($xi - $mean) ** 2;
+        }
+
+        $W = $denominator > 0 ? ($numerator ** 2) / $denominator : 1;
+        $W = min(1.0, max(0.0, $W));
+
+        $mu = 0.0038915 * ($n ** 3) - 0.083751 * ($n ** 2) - 0.31082 * $n - 1.5861;
+        $sigma = exp(0.0030302 * ($n ** 2) - 0.082676 * $n - 0.4803);
+        $z = (log(1 - $W) - $mu) / $sigma;
+        $pValue = min(1.0, max(0.0001, 1 - $this->normalCDF($z)));
+
+        return [
+            'statistic' => round($W, 4),
+            'p_value'   => round($pValue, 4),
+            'conclusion'=> $pValue > 0.05
+                ? 'Data berdistribusi normal (p > 0.05, gagal tolak H₀)'
+                : 'Data tidak berdistribusi normal (p ≤ 0.05, tolak H₀)',
+            'normal'    => $pValue > 0.05,
+        ];
+    }
+
+    /**
+     * Kolmogorov-Smirnov Test
+     */
+    private function kolmogorovSmirnov(array $values): array
+    {
+        $x = $values;
+        sort($x);
+        $n = count($x);
+        $mean = Average::mean($x);
+        $stdDev = Descriptive::standardDeviation($x, Descriptive::SAMPLE);
+
+        $dMax = 0;
+        foreach ($x as $i => $xi) {
+            $z = ($stdDev > 0) ? ($xi - $mean) / $stdDev : 0;
+            $theoretical = $this->normalCDF($z);
+            $d1 = abs(($i + 1) / $n - $theoretical);
+            $d2 = abs($i / $n - $theoretical);
+            $dMax = max($dMax, $d1, $d2);
+        }
+
+        $dStar = $dMax * (sqrt($n) - 0.01 + 0.85 / sqrt($n));
+        if ($dStar < 0.302) $pValue = 0.999;
+        elseif ($dStar < 0.5) $pValue = max(0.2, 2 * exp(-2 * $dStar * $dStar * 1.1));
+        else $pValue = max(0.001, 2 * exp(-2 * $dStar * $dStar));
+
+        $pValue = min(1.0, max(0.001, $pValue));
+
+        return [
+            'statistic' => round($dMax, 4),
+            'p_value'   => round($pValue, 4),
+            'conclusion'=> $pValue > 0.05
+                ? 'Data berdistribusi normal (p > 0.05, gagal tolak H₀)'
+                : 'Data tidak berdistribusi normal (p ≤ 0.05, tolak H₀)',
+            'normal'    => $pValue > 0.05,
+        ];
+    }
+
+    /**
+     * Q-Q Plot points
+     */
+    private function calculateQQPoints(array $values): array
+    {
+        $x = $values;
+        sort($x);
+        $n = count($x);
+        $mean = Average::mean($x);
+        $stdDev = Descriptive::standardDeviation($x, Descriptive::SAMPLE);
+
+        $points = [];
+        for ($i = 0; $i < $n; $i++) {
+            $p = ($i + 1 - 0.375) / ($n + 0.25);
+            $theoretical = $mean + $stdDev * $this->normalQuantile($p);
+            $points[] = ['x' => round($theoretical, 4), 'y' => round($x[$i], 4)];
+        }
+
+        return $points;
+    }
+
+    /**
+     * Normal quantile (inverse CDF)
+     */
+    private function normalQuantile(float $p): float
+    {
+        if ($p <= 0) return -8;
+        if ($p >= 1) return 8;
+
+        $a = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02, 1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
+        $b = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02, 6.680131188771972e+01, -1.328068155288572e+01];
+        $c = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00, -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
+        $d = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00, 3.754408661907416e+00];
+
+        $pLow = 0.02425;
+        $pHigh = 1 - $pLow;
+
+        if ($p < $pLow) {
+            $q = sqrt(-2 * log($p));
+            return (((((($c[0]*$q+$c[1])*$q+$c[2])*$q+$c[3])*$q+$c[4])*$q+$c[5]) / ((((($d[0]*$q+$d[1])*$q+$d[2])*$q+$d[3])*$q+1)));
+        } elseif ($p <= $pHigh) {
+            $q = $p - 0.5;
+            $r = $q * $q;
+            return (((((($a[0]*$r+$a[1])*$r+$a[2])*$r+$a[3])*$r+$a[4])*$r+$a[5])*$q / (((((($b[0]*$r+$b[1])*$r+$b[2])*$r+$b[3])*$r+$b[4])*$r+1)));
+        } else {
+            $q = sqrt(-2 * log(1 - $p));
+            return -(((((($c[0]*$q+$c[1])*$q+$c[2])*$q+$c[3])*$q+$c[4])*$q+$c[5]) / ((((($d[0]*$q+$d[1])*$q+$d[2])*$q+$d[3])*$q+1)));
+        }
+    }
+
+    /**
+     * Normal CDF
+     */
+    private function normalCDF(float $z): float
+    {
+        $t = 1 / (1 + 0.2316419 * abs($z));
+        $d = 0.3989422820 * exp(-$z * $z / 2);
+        $p = $d * $t * (0.3193815 + $t * (-0.3565638 + $t * (1.7814779 + $t * (-1.8212560 + $t * 1.3302744))));
+        return $z > 0 ? 1 - $p : $p;
+    }
+
+    /**
+     * Hitung modus
      */
     private function calculateMode(array $values): string
     {
         $counts = array_count_values(array_map(fn($v) => (string) $v, $values));
         $maxCount = max($counts);
-
-        // Kalau semua nilai unik (nggak ada yang berulang), Excel nunjukin #N/A
-        if ($maxCount <= 1) {
-            return 'Tidak ada modus (semua nilai unik)';
-        }
-
+        if ($maxCount <= 1) return 'Tidak ada modus (semua nilai unik)';
         foreach ($values as $v) {
-            if ($counts[(string) $v] === $maxCount) {
-                return (string) $v;
-            }
+            if ($counts[(string) $v] === $maxCount) return (string) $v;
         }
-
         return '-';
     }
 
     /**
-     * Hitung kuartil pakai metode interpolasi linear,
-     * sama persis dengan QUARTILE.INC di Excel.
+     * Hitung kuartil QUARTILE.INC
      */
     private function quartileInclusive(array $values, int $quartile): float
     {
         sort($values);
         $n = count($values);
-
-        if ($n === 1) {
-            return $values[0];
-        }
-
-        // Posisi dalam array (0-indexed), rumus QUARTILE.INC Excel
+        if ($n === 1) return $values[0];
         $position = ($quartile / 4) * ($n - 1);
-
         $lowerIndex = (int) floor($position);
         $upperIndex = (int) ceil($position);
         $fraction = $position - $lowerIndex;
-
-        if ($lowerIndex === $upperIndex) {
-            return $values[$lowerIndex];
-        }
-
+        if ($lowerIndex === $upperIndex) return $values[$lowerIndex];
         return $values[$lowerIndex] + $fraction * ($values[$upperIndex] - $values[$lowerIndex]);
     }
 
     /**
-     * Hitung bins untuk histogram menggunakan aturan Sturges,
-     * metode standar untuk menentukan jumlah interval yang wajar.
+     * Hitung histogram (Sturges)
      */
     private function calculateHistogram(array $values): array
     {
         $n = count($values);
         $min = min($values);
         $max = max($values);
-
-        // Aturan Sturges: k = 1 + log2(n), dibulatkan, minimal 5 bin
         $binCount = max(5, (int) ceil(1 + log($n, 2)));
-
         $range = $max - $min;
-        if ($range == 0) {
-            // Semua nilai sama, bikin 1 bin saja
-            return [
-                'labels' => [(string) $min],
-                'values' => [$n],
-            ];
-        }
-
+        if ($range == 0) return ['labels' => [(string) $min], 'values' => [$n]];
         $binWidth = $range / $binCount;
-
         $bins = array_fill(0, $binCount, 0);
         $labels = [];
-
         for ($i = 0; $i < $binCount; $i++) {
             $lower = $min + ($i * $binWidth);
             $upper = $lower + $binWidth;
             $labels[] = round($lower, 2) . ' - ' . round($upper, 2);
         }
-
         foreach ($values as $val) {
             $binIndex = (int) floor(($val - $min) / $binWidth);
-            // Nilai maksimum masuk ke bin terakhir (bukan bin baru di luar range)
-            if ($binIndex >= $binCount) {
-                $binIndex = $binCount - 1;
-            }
+            if ($binIndex >= $binCount) $binIndex = $binCount - 1;
             $bins[$binIndex]++;
         }
-
-        return [
-            'labels' => $labels,
-            'values' => $bins,
-        ];
+        return ['labels' => $labels, 'values' => $bins];
     }
 }

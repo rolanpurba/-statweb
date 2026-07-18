@@ -19,6 +19,10 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/datasets/{dataset}/analysis/descriptive', [AnalysisController::class, 'descriptive'])->name('analysis.descriptive');
     Route::post('/datasets/{dataset}/analysis/categorical', [AnalysisController::class, 'categorical'])->name('analysis.categorical');
     Route::post('/datasets/{dataset}/analysis/scatter', [AnalysisController::class, 'scatter'])->name('analysis.scatter');
+    Route::post('/datasets/{dataset}/analysis/normality', [AnalysisController::class, 'normality'])->name('analysis.normality');
+    Route::post('/datasets/{dataset}/analysis/ttest-one-sample', [AnalysisController::class, 'tTestOneSample'])->name('analysis.ttest_one_sample');
+    Route::post('/datasets/{dataset}/analysis/ttest-independent', [AnalysisController::class, 'tTestIndependent'])->name('analysis.ttest_independent');
+    Route::post('/datasets/{dataset}/analysis/ttest-paired', [AnalysisController::class, 'tTestPaired'])->name('analysis.ttest_paired');
 });
 
 Route::get('/dashboard', function () {
