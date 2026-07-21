@@ -208,7 +208,7 @@
             </div>
 
             {{-- Uji-t Berpasangan --}}
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6 mb-6">
                 <h3 class="text-lg font-medium mb-1">Uji-t Berpasangan</h3>
                 <p class="text-sm text-gray-500 mb-4">
                     Bandingkan 2 pengukuran pada subjek yang sama (misal: nilai sebelum vs sesudah treatment)
@@ -240,6 +240,131 @@
                         </div>
                         <button type="submit" class="bg-teal-500 text-white px-4 py-2 rounded hover:bg-teal-600">
                             Jalankan Uji-t Berpasangan
+                        </button>
+                    </form>
+                @endif
+            </div>
+
+            {{-- ANOVA --}}
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6 mb-6">
+                <h3 class="text-lg font-medium mb-1">One-Way ANOVA</h3>
+                <p class="text-sm text-gray-500 mb-4">
+                    Bandingkan rata-rata 3+ kelompok sekaligus (kolom kelompok minimal 2 kategori)
+                </p>
+                @if ($numericColumns->isEmpty() || $categoricalColumns->isEmpty())
+                    <p class="text-gray-500 text-sm">Dibutuhkan minimal 1 kolom numerik dan 1 kolom kategorik.</p>
+                @else
+                    <form action="{{ route('analysis.anova', $dataset->id) }}" method="POST">
+                        @csrf
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Kolom Nilai (Numerik)</label>
+                                <select name="column_value" required class="w-full border-gray-300 rounded shadow-sm">
+                                    <option value="">-- Pilih Kolom --</option>
+                                    @foreach ($numericColumns as $col)
+                                        <option value="{{ $col->column_name }}">{{ $col->column_name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Kolom Kelompok (Kategorik)</label>
+                                <select name="column_group" required class="w-full border-gray-300 rounded shadow-sm">
+                                    <option value="">-- Pilih Kolom --</option>
+                                    @foreach ($categoricalColumns as $col)
+                                        <option value="{{ $col->column_name }}">{{ $col->column_name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="bg-cyan-600 text-white px-4 py-2 rounded hover:bg-cyan-700">
+                            Jalankan ANOVA
+                        </button>
+                    </form>
+                @endif
+            </div>
+
+            {{-- Korelasi --}}
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6 mb-6">
+                <h3 class="text-lg font-medium mb-1">Korelasi</h3>
+                <p class="text-sm text-gray-500 mb-4">
+                    Ukur kekuatan hubungan antara 2 kolom numerik (Pearson atau Spearman)
+                </p>
+                @if ($numericColumns->count() < 2)
+                    <p class="text-gray-500 text-sm">Dibutuhkan minimal 2 kolom numerik.</p>
+                @else
+                    <form action="{{ route('analysis.correlation', $dataset->id) }}" method="POST">
+                        @csrf
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Kolom X</label>
+                                <select name="column_x" required class="w-full border-gray-300 rounded shadow-sm">
+                                    <option value="">-- Pilih Kolom --</option>
+                                    @foreach ($numericColumns as $col)
+                                        <option value="{{ $col->column_name }}">{{ $col->column_name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Kolom Y</label>
+                                <select name="column_y" required class="w-full border-gray-300 rounded shadow-sm">
+                                    <option value="">-- Pilih Kolom --</option>
+                                    @foreach ($numericColumns as $col)
+                                        <option value="{{ $col->column_name }}">{{ $col->column_name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Metode</label>
+                            <div class="flex gap-6">
+                                <label class="flex items-center gap-2 text-sm">
+                                    <input type="radio" name="method" value="pearson" checked> Pearson (data normal)
+                                </label>
+                                <label class="flex items-center gap-2 text-sm">
+                                    <input type="radio" name="method" value="spearman"> Spearman (data tidak normal / ordinal)
+                                </label>
+                            </div>
+                        </div>
+                        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                            Hitung Korelasi
+                        </button>
+                    </form>
+                @endif
+            </div>
+
+            {{-- Chi-square --}}
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
+                <h3 class="text-lg font-medium mb-1">Chi-square Test</h3>
+                <p class="text-sm text-gray-500 mb-4">
+                    Uji hubungan antara 2 variabel kategorik
+                </p>
+                @if ($categoricalColumns->count() < 2)
+                    <p class="text-gray-500 text-sm">Dibutuhkan minimal 2 kolom kategorik.</p>
+                @else
+                    <form action="{{ route('analysis.chi_square', $dataset->id) }}" method="POST">
+                        @csrf
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Variabel 1</label>
+                                <select name="column_1" required class="w-full border-gray-300 rounded shadow-sm">
+                                    <option value="">-- Pilih Kolom --</option>
+                                    @foreach ($categoricalColumns as $col)
+                                        <option value="{{ $col->column_name }}">{{ $col->column_name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Variabel 2</label>
+                                <select name="column_2" required class="w-full border-gray-300 rounded shadow-sm">
+                                    <option value="">-- Pilih Kolom --</option>
+                                    @foreach ($categoricalColumns as $col)
+                                        <option value="{{ $col->column_name }}">{{ $col->column_name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="bg-pink-600 text-white px-4 py-2 rounded hover:bg-pink-700">
+                            Jalankan Chi-square Test
                         </button>
                     </form>
                 @endif

@@ -23,6 +23,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/datasets/{dataset}/analysis/ttest-one-sample', [AnalysisController::class, 'tTestOneSample'])->name('analysis.ttest_one_sample');
     Route::post('/datasets/{dataset}/analysis/ttest-independent', [AnalysisController::class, 'tTestIndependent'])->name('analysis.ttest_independent');
     Route::post('/datasets/{dataset}/analysis/ttest-paired', [AnalysisController::class, 'tTestPaired'])->name('analysis.ttest_paired');
+    Route::post('/datasets/{dataset}/analysis/anova', [AnalysisController::class, 'anova'])->name('analysis.anova');
+    Route::post('/datasets/{dataset}/analysis/correlation', [AnalysisController::class, 'correlation'])->name('analysis.correlation');
+    Route::post('/datasets/{dataset}/analysis/chi-square', [AnalysisController::class, 'chiSquare'])->name('analysis.chi_square');
 });
 
 Route::get('/dashboard', function () {
