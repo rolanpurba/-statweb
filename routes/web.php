@@ -26,6 +26,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/datasets/{dataset}/analysis/anova', [AnalysisController::class, 'anova'])->name('analysis.anova');
     Route::post('/datasets/{dataset}/analysis/correlation', [AnalysisController::class, 'correlation'])->name('analysis.correlation');
     Route::post('/datasets/{dataset}/analysis/chi-square', [AnalysisController::class, 'chiSquare'])->name('analysis.chi_square');
+    Route::post('/datasets/{dataset}/analysis/regression-simple', [AnalysisController::class, 'regressionSimple'])->name('analysis.regression_simple');
+    Route::post('/datasets/{dataset}/analysis/regression-multiple', [AnalysisController::class, 'regressionMultiple'])->name('analysis.regression_multiple');
 });
 
 Route::get('/dashboard', function () {

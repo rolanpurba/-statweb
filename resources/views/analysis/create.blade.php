@@ -138,7 +138,7 @@
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6 mb-6">
                 <h3 class="text-lg font-medium mb-1">Uji-t Satu Sampel</h3>
                 <p class="text-sm text-gray-500 mb-4">
-                    Bandingkan rata-rata sampel dengan nilai tertentu (misal: apakah rata-rata = 75?)
+                    Bandingkan rata-rata sampel dengan nilai tertentu
                 </p>
                 @if ($numericColumns->isEmpty())
                     <p class="text-gray-500 text-sm">Dataset ini tidak memiliki kolom numerik.</p>
@@ -249,7 +249,7 @@
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6 mb-6">
                 <h3 class="text-lg font-medium mb-1">One-Way ANOVA</h3>
                 <p class="text-sm text-gray-500 mb-4">
-                    Bandingkan rata-rata 3+ kelompok sekaligus (kolom kelompok minimal 2 kategori)
+                    Bandingkan rata-rata 3+ kelompok sekaligus
                 </p>
                 @if ($numericColumns->isEmpty() || $categoricalColumns->isEmpty())
                     <p class="text-gray-500 text-sm">Dibutuhkan minimal 1 kolom numerik dan 1 kolom kategorik.</p>
@@ -333,7 +333,7 @@
             </div>
 
             {{-- Chi-square --}}
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6 mb-6">
                 <h3 class="text-lg font-medium mb-1">Chi-square Test</h3>
                 <p class="text-sm text-gray-500 mb-4">
                     Uji hubungan antara 2 variabel kategorik
@@ -365,6 +365,82 @@
                         </div>
                         <button type="submit" class="bg-pink-600 text-white px-4 py-2 rounded hover:bg-pink-700">
                             Jalankan Chi-square Test
+                        </button>
+                    </form>
+                @endif
+            </div>
+
+            {{-- Regresi Linear Sederhana --}}
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6 mb-6">
+                <h3 class="text-lg font-medium mb-1">Regresi Linear Sederhana</h3>
+                <p class="text-sm text-gray-500 mb-4">
+                    1 variabel independen (X) memprediksi 1 variabel dependen (Y)
+                </p>
+                @if ($numericColumns->count() < 2)
+                    <p class="text-gray-500 text-sm">Dibutuhkan minimal 2 kolom numerik.</p>
+                @else
+                    <form action="{{ route('analysis.regression_simple', $dataset->id) }}" method="POST">
+                        @csrf
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Variabel X (Independen)</label>
+                                <select name="column_x" required class="w-full border-gray-300 rounded shadow-sm">
+                                    <option value="">-- Pilih Kolom --</option>
+                                    @foreach ($numericColumns as $col)
+                                        <option value="{{ $col->column_name }}">{{ $col->column_name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Variabel Y (Dependen)</label>
+                                <select name="column_y" required class="w-full border-gray-300 rounded shadow-sm">
+                                    <option value="">-- Pilih Kolom --</option>
+                                    @foreach ($numericColumns as $col)
+                                        <option value="{{ $col->column_name }}">{{ $col->column_name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="bg-emerald-600 text-white px-4 py-2 rounded hover:bg-emerald-700">
+                            Jalankan Regresi Sederhana
+                        </button>
+                    </form>
+                @endif
+            </div>
+
+            {{-- Regresi Linear Berganda --}}
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
+                <h3 class="text-lg font-medium mb-1">Regresi Linear Berganda</h3>
+                <p class="text-sm text-gray-500 mb-4">
+                    2+ variabel independen (X) memprediksi 1 variabel dependen (Y)
+                </p>
+                @if ($numericColumns->count() < 3)
+                    <p class="text-gray-500 text-sm">Dibutuhkan minimal 3 kolom numerik (1 Y + minimal 2 X).</p>
+                @else
+                    <form action="{{ route('analysis.regression_multiple', $dataset->id) }}" method="POST">
+                        @csrf
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Variabel Y (Dependen)</label>
+                            <select name="column_y" required class="w-full border-gray-300 rounded shadow-sm">
+                                <option value="">-- Pilih Kolom --</option>
+                                @foreach ($numericColumns as $col)
+                                    <option value="{{ $col->column_name }}">{{ $col->column_name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Variabel X (Independen) — pilih 2 atau lebih</label>
+                            <div class="space-y-2 p-3 border border-gray-200 rounded">
+                                @foreach ($numericColumns as $col)
+                                    <label class="flex items-center gap-2 text-sm">
+                                        <input type="checkbox" name="columns_x[]" value="{{ $col->column_name }}">
+                                        {{ $col->column_name }}
+                                    </label>
+                                @endforeach
+                            </div>
+                        </div>
+                        <button type="submit" class="bg-violet-600 text-white px-4 py-2 rounded hover:bg-violet-700">
+                            Jalankan Regresi Berganda
                         </button>
                     </form>
                 @endif
