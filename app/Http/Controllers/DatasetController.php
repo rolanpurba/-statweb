@@ -4,52 +4,44 @@ namespace App\Http\Controllers;
 
 use App\Models\Dataset;
 use App\Models\DatasetColumn;
+use App\Models\DatasetRow;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Facades\Excel;
 
 class DatasetController extends Controller
 {
-    // Tampilkan halaman form upload + list dataset yang sudah ada
     public function index()
     {
-        $datasets = Dataset::where('user_id', Auth::id())
-            ->latest()
-            ->get();
-
+        $datasets = Dataset::where('user_id', Auth::id())->latest()->get();
         return view('datasets.index', compact('datasets'));
     }
 
-    // Proses upload file
     public function store(Request $request)
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'file' => 'required|file|mimes:csv,txt,xlsx,xls|max:10240',
+            'file' => 'required|file|mimes:csv,txt,xlsx,xls|max:51200',
         ]);
 
-        // Simpan file ke storage/app/public/datasets
         $path = $request->file('file')->store('datasets', 'public');
 
-        // Simpan record dataset ke database
         $dataset = Dataset::create([
-            'user_id' => Auth::id(),
-            'name' => $request->name,
+            'user_id'   => Auth::id(),
+            'name'      => $request->name,
             'file_path' => $path,
         ]);
 
-        // Baca isi file buat ambil nama kolom
-        $fullPath = storage_path('app/public/' . $path);
-        $rows = Excel::toArray([], $fullPath);
-        $headerRow = $rows[0][0] ?? [];
+        $fullPath   = storage_path('app/public/' . $path);
+        $rows       = Excel::toArray([], $fullPath);
+        $headerRow  = $rows[0][0] ?? [];
+        $dataRows   = array_slice($rows[0], 1);
+        $sampleRows = array_slice($dataRows, 0, 20);
 
-        // Ambil beberapa baris data buat deteksi tipe kolom (numerik/kategorik)
-        $sampleRows = array_slice($rows[0], 1, 20); // ambil 20 baris pertama buat sample
-
+        // Deteksi tipe kolom & simpan ke dataset_columns
         foreach ($headerRow as $index => $columnName) {
             if (empty($columnName)) continue;
 
-            // Kumpulkan nilai dari kolom ini di beberapa baris sample
             $values = array_column($sampleRows, $index);
             $isNumeric = true;
             $hasAtLeastOneValue = false;
@@ -57,25 +49,41 @@ class DatasetController extends Controller
             foreach ($values as $value) {
                 if ($value === null || $value === '') continue;
                 $hasAtLeastOneValue = true;
-
-                // Normalisasi format angka Indonesia (koma sebagai desimal) ke format standar (titik)
                 $normalizedValue = str_replace(',', '.', (string) $value);
-
                 if (!is_numeric($normalizedValue)) {
                     $isNumeric = false;
                     break;
                 }
             }
 
-            // Kalau semua nilai sample kosong, anggap kategorik (default aman)
-            if (!$hasAtLeastOneValue) {
-                $isNumeric = false;
-            }
+            if (!$hasAtLeastOneValue) $isNumeric = false;
 
             DatasetColumn::create([
-                'dataset_id' => $dataset->id,
+                'dataset_id'  => $dataset->id,
                 'column_name' => trim($columnName),
-                'data_type' => $isNumeric ? 'numeric' : 'categorical',
+                'data_type'   => $isNumeric ? 'numeric' : 'categorical',
+                'measure'     => $isNumeric ? 'scale' : 'nominal',
+            ]);
+        }
+
+        // Simpan tiap baris data ke dataset_rows
+        foreach ($dataRows as $rowIndex => $row) {
+            $hasData = false;
+            foreach ($row as $cell) {
+                if ($cell !== null && $cell !== '') { $hasData = true; break; }
+            }
+            if (!$hasData) continue;
+
+            $rowData = [];
+            foreach ($headerRow as $colIndex => $colName) {
+                if (empty($colName)) continue;
+                $rowData[trim($colName)] = $row[$colIndex] ?? null;
+            }
+
+            DatasetRow::create([
+                'dataset_id' => $dataset->id,
+                'row_number' => $rowIndex + 1,
+                'data'       => $rowData,
             ]);
         }
 
@@ -83,34 +91,111 @@ class DatasetController extends Controller
             ->with('success', 'Dataset berhasil diupload!');
     }
 
-    // Tampilkan detail dataset (preview data + kolom)
     public function show(Dataset $dataset)
     {
-        // Pastikan user cuma bisa lihat dataset miliknya sendiri
-        if ($dataset->user_id !== Auth::id()) {
-            abort(403);
-        }
-
-        $fullPath = storage_path('app/public/' . $dataset->file_path);
-        $rows = Excel::toArray([], $fullPath);
-        $headerRow = $rows[0][0] ?? [];
-        $dataRows = array_slice($rows[0], 1, 50); // preview 50 baris pertama
-
-        $columns = $dataset->columns;
-
-        return view('datasets.show', compact('dataset', 'headerRow', 'dataRows', 'columns'));
+        if ($dataset->user_id !== Auth::id()) abort(403);
+        $columns  = $dataset->columns;
+        $dataRows = $dataset->rows()->paginate(50);
+        return view('datasets.show', compact('dataset', 'columns', 'dataRows'));
     }
 
-    // Hapus dataset
-    public function destroy(Dataset $dataset)
+    public function updateVariables(Request $request, Dataset $dataset)
     {
-        if ($dataset->user_id !== Auth::id()) {
-            abort(403);
+        if ($dataset->user_id !== Auth::id()) abort(403);
+
+        $request->validate([
+            'columns'             => 'required|array',
+            'columns.*.id'        => 'required|integer',
+            'columns.*.label'     => 'nullable|string|max:255',
+            'columns.*.data_type' => 'required|in:numeric,categorical',
+            'columns.*.decimals'  => 'required|integer|min:0|max:10',
+            'columns.*.measure'   => 'required|in:nominal,ordinal,scale',
+        ]);
+
+        foreach ($request->columns as $colData) {
+            DatasetColumn::where('id', $colData['id'])
+                ->where('dataset_id', $dataset->id)
+                ->update([
+                    'label'     => $colData['label'] ?? null,
+                    'data_type' => $colData['data_type'],
+                    'decimals'  => $colData['decimals'],
+                    'measure'   => $colData['measure'],
+                ]);
         }
 
+        return redirect()->route('datasets.show', $dataset->id)
+            ->with('success', 'Informasi variabel berhasil disimpan.');
+    }
+
+    public function updateCell(Request $request, Dataset $dataset)
+    {
+        if ($dataset->user_id !== Auth::id()) abort(403);
+
+        $request->validate([
+            'row_id'      => 'required|integer',
+            'column_name' => 'required|string',
+            'value'       => 'nullable|string',
+        ]);
+
+        $row = DatasetRow::where('id', $request->row_id)
+            ->where('dataset_id', $dataset->id)
+            ->firstOrFail();
+
+        $data = $row->data;
+        $data[$request->column_name] = $request->value;
+        $row->data = $data;
+        $row->save();
+
+        return response()->json(['success' => true, 'value' => $request->value]);
+    }
+
+    public function addRow(Request $request, Dataset $dataset)
+    {
+        if ($dataset->user_id !== Auth::id()) abort(403);
+
+        $lastRow = DatasetRow::where('dataset_id', $dataset->id)
+            ->orderBy('row_number', 'desc')
+            ->first();
+
+        $nextRowNumber = $lastRow ? $lastRow->row_number + 1 : 1;
+
+        $emptyData = [];
+        foreach ($dataset->columns as $col) {
+            $emptyData[$col->column_name] = null;
+        }
+
+        $row = DatasetRow::create([
+            'dataset_id' => $dataset->id,
+            'row_number' => $nextRowNumber,
+            'data'       => $emptyData,
+        ]);
+
+        return response()->json([
+            'success'    => true,
+            'row_id'     => $row->id,
+            'row_number' => $row->row_number,
+            'data'       => $row->data,
+        ]);
+    }
+
+    public function deleteRow(Request $request, Dataset $dataset)
+    {
+        if ($dataset->user_id !== Auth::id()) abort(403);
+
+        $request->validate(['row_id' => 'required|integer']);
+
+        DatasetRow::where('id', $request->row_id)
+            ->where('dataset_id', $dataset->id)
+            ->delete();
+
+        return response()->json(['success' => true]);
+    }
+
+    public function destroy(Dataset $dataset)
+    {
+        if ($dataset->user_id !== Auth::id()) abort(403);
         \Storage::disk('public')->delete($dataset->file_path);
         $dataset->delete();
-
         return redirect()->route('datasets.index')
             ->with('success', 'Dataset berhasil dihapus.');
     }

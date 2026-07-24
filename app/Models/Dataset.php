@@ -26,4 +26,9 @@ class Dataset extends Model
     {
         return $this->hasMany(DatasetColumn::class);
     }
+
+    public function rows(): HasMany
+    {
+        return $this->hasMany(DatasetRow::class)->orderBy('row_number');
+    }
 }

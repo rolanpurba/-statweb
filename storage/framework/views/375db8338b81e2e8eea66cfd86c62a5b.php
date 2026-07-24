@@ -25,73 +25,263 @@
                 </div>
             <?php endif; ?>
 
+            
             <div class="mb-4 flex justify-between items-center">
                 <a href="<?php echo e(route('datasets.index')); ?>" class="text-indigo-600 hover:underline">
                     &larr; Kembali ke Daftar Dataset
                 </a>
                 <a href="<?php echo e(route('analysis.create', $dataset->id)); ?>"
                    class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
-                    Analisis Statistik Deskriptif
+                    Analisis Statistik
                 </a>
             </div>
 
             
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6 mb-6">
-                <h3 class="text-lg font-medium mb-4">Informasi Kolom</h3>
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead>
-                    <tr>
-                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nama Kolom</th>
-                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tipe Data</th>
-                    </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200">
-                    <?php $__currentLoopData = $columns; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $column): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                        <tr>
-                            <td class="px-4 py-2"><?php echo e($column->column_name); ?></td>
-                            <td class="px-4 py-2">
-                                <?php if($column->data_type === 'numeric'): ?>
-                                    <span class="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">Numerik</span>
-                                <?php else: ?>
-                                    <span class="px-2 py-1 text-xs bg-yellow-100 text-yellow-700 rounded">Kategorik</span>
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-                    </tbody>
-                </table>
+            <div class="flex gap-0 mb-0">
+                <button onclick="showTab('data')" id="tab-data"
+                        class="tab-btn px-6 py-2 text-sm font-medium border-b-2 border-indigo-600 text-indigo-600 bg-white rounded-tl">
+                    Data View
+                </button>
+                <button onclick="showTab('variable')" id="tab-variable"
+                        class="tab-btn px-6 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 bg-gray-50 rounded-tr">
+                    Variable View
+                </button>
             </div>
 
             
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                <h3 class="text-lg font-medium mb-4">Preview Data (50 baris pertama)</h3>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200 text-sm">
-                        <thead>
-                        <tr>
-                            <?php $__currentLoopData = $headerRow; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $head): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
-                                    <?php echo e($head); ?>
+            <div id="panel-data" class="bg-white shadow-sm rounded-b rounded-tr p-6">
 
+                <div class="flex justify-between items-center mb-4">
+                    <p class="text-sm text-gray-500">
+                        Total baris: <?php echo e($dataRows->total()); ?> | Halaman <?php echo e($dataRows->currentPage()); ?> dari <?php echo e($dataRows->lastPage()); ?>
+
+                    </p>
+                    <button onclick="addRow()"
+                            class="bg-indigo-600 text-white px-3 py-1.5 text-sm rounded hover:bg-indigo-700">
+                        + Tambah Baris
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm" id="dataTable">
+                        <thead>
+                        <tr class="bg-gray-50">
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 w-12">#</th>
+                            <?php $__currentLoopData = $columns; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $col): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 whitespace-nowrap">
+                                    <?php echo e($col->label ?: $col->column_name); ?>
+
+                                    <span class="text-gray-300 font-normal ml-1">
+                                            <?php if($col->measure === 'scale'): ?> ⚖
+                                        <?php elseif($col->measure === 'ordinal'): ?> ↕
+                                        <?php else: ?> ≡
+                                        <?php endif; ?>
+                                        </span>
                                 </th>
                             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                            <th class="px-3 py-2 w-12"></th>
                         </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-200">
+                        <tbody class="divide-y divide-gray-200" id="tableBody">
                         <?php $__currentLoopData = $dataRows; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $row): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                            <tr>
-                                <?php $__currentLoopData = $row; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $cell): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                    <td class="px-3 py-2 whitespace-nowrap"><?php echo e($cell); ?></td>
+                            <tr id="row-<?php echo e($row->id); ?>">
+                                <td class="px-3 py-1.5 text-gray-400 text-xs"><?php echo e($row->row_number); ?></td>
+                                <?php $__currentLoopData = $columns; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $col): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                    <td class="px-3 py-1.5"
+                                        contenteditable="true"
+                                        data-row-id="<?php echo e($row->id); ?>"
+                                        data-column="<?php echo e($col->column_name); ?>"
+                                        onblur="saveCell(this)"
+                                        class="editable-cell focus:outline-none focus:bg-blue-50 cursor-text min-w-24">
+                                        <?php echo e($row->data[$col->column_name] ?? ''); ?>
+
+                                    </td>
                                 <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                <td class="px-3 py-1.5 text-center">
+                                    <button onclick="deleteRow(<?php echo e($row->id); ?>)"
+                                            class="text-red-400 hover:text-red-600 text-xs">✕</button>
+                                </td>
                             </tr>
                         <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                         </tbody>
                     </table>
                 </div>
+
+                
+                <div class="mt-4">
+                    <?php echo e($dataRows->links()); ?>
+
+                </div>
+
+                <p class="text-xs text-gray-400 mt-2">
+                    Klik cell untuk mengedit langsung. Perubahan tersimpan otomatis saat pindah ke cell lain.
+                </p>
+            </div>
+
+            
+            <div id="panel-variable" class="bg-white shadow-sm rounded-b rounded-tr p-6 hidden">
+
+                <?php if(session('success')): ?>
+                    <div class="mb-4 p-4 bg-green-100 text-green-700 rounded">
+                        <?php echo e(session('success')); ?>
+
+                    </div>
+                <?php endif; ?>
+
+                <form action="<?php echo e(route('datasets.update_variables', $dataset->id)); ?>" method="POST">
+                    <?php echo csrf_field(); ?>
+
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200 text-sm">
+                            <thead>
+                            <tr class="bg-gray-50">
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Name</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Type</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Label</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Decimals</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Measure</th>
+                            </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                            <?php $__currentLoopData = $columns; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $i => $col): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                <input type="hidden" name="columns[<?php echo e($i); ?>][id]" value="<?php echo e($col->id); ?>">
+                                <tr>
+                                    <td class="px-4 py-2 font-medium text-gray-700"><?php echo e($col->column_name); ?></td>
+                                    <td class="px-4 py-2">
+                                        <select name="columns[<?php echo e($i); ?>][data_type]"
+                                                class="border-gray-300 rounded shadow-sm text-sm w-full">
+                                            <option value="numeric" <?php echo e($col->data_type === 'numeric' ? 'selected' : ''); ?>>Numeric</option>
+                                            <option value="categorical" <?php echo e($col->data_type === 'categorical' ? 'selected' : ''); ?>>String</option>
+                                        </select>
+                                    </td>
+                                    <td class="px-4 py-2">
+                                        <input type="text" name="columns[<?php echo e($i); ?>][label]"
+                                               value="<?php echo e($col->label); ?>"
+                                               placeholder="Label opsional"
+                                               class="border-gray-300 rounded shadow-sm text-sm w-full">
+                                    </td>
+                                    <td class="px-4 py-2">
+                                        <input type="number" name="columns[<?php echo e($i); ?>][decimals]"
+                                               value="<?php echo e($col->decimals ?? 2); ?>"
+                                               min="0" max="10"
+                                               class="border-gray-300 rounded shadow-sm text-sm w-16">
+                                    </td>
+                                    <td class="px-4 py-2">
+                                        <select name="columns[<?php echo e($i); ?>][measure]"
+                                                class="border-gray-300 rounded shadow-sm text-sm w-full">
+                                            <option value="nominal" <?php echo e(($col->measure ?? 'nominal') === 'nominal' ? 'selected' : ''); ?>>Nominal</option>
+                                            <option value="ordinal" <?php echo e(($col->measure ?? '') === 'ordinal' ? 'selected' : ''); ?>>Ordinal</option>
+                                            <option value="scale" <?php echo e(($col->measure ?? '') === 'scale' ? 'selected' : ''); ?>>Scale</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="mt-4">
+                        <button type="submit"
+                                class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">
+                            Simpan Perubahan
+                        </button>
+                    </div>
+                </form>
             </div>
 
         </div>
     </div>
+
+    <script>
+        // Tab switching
+        function showTab(tab) {
+            document.getElementById('panel-data').classList.toggle('hidden', tab !== 'data');
+            document.getElementById('panel-variable').classList.toggle('hidden', tab !== 'variable');
+            document.getElementById('tab-data').className = tab === 'data'
+                ? 'tab-btn px-6 py-2 text-sm font-medium border-b-2 border-indigo-600 text-indigo-600 bg-white rounded-tl'
+                : 'tab-btn px-6 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 bg-gray-50 rounded-tl';
+            document.getElementById('tab-variable').className = tab === 'variable'
+                ? 'tab-btn px-6 py-2 text-sm font-medium border-b-2 border-indigo-600 text-indigo-600 bg-white rounded-tr'
+                : 'tab-btn px-6 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 bg-gray-50 rounded-tr';
+        }
+
+        // Save cell via AJAX
+        function saveCell(cell) {
+            const rowId = cell.dataset.rowId;
+            const columnName = cell.dataset.column;
+            const value = cell.innerText.trim();
+
+            cell.style.backgroundColor = '#fef9c3'; // kuning sementara (saving)
+
+            fetch('<?php echo e(route("datasets.update_cell", $dataset->id)); ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '<?php echo e(csrf_token()); ?>',
+                },
+                body: JSON.stringify({ row_id: rowId, column_name: columnName, value: value }),
+            })
+                .then(res => res.json())
+                .then(data => {
+                    cell.style.backgroundColor = data.success ? '#f0fdf4' : '#fef2f2';
+                    setTimeout(() => cell.style.backgroundColor = '', 1000);
+                })
+                .catch(() => { cell.style.backgroundColor = '#fef2f2'; });
+        }
+
+        // Add row via AJAX
+        function addRow() {
+            fetch('<?php echo e(route("datasets.add_row", $dataset->id)); ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '<?php echo e(csrf_token()); ?>',
+                },
+                body: JSON.stringify({}),
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success) return;
+                    const tbody = document.getElementById('tableBody');
+                    const columns = <?php echo json_encode($columns->pluck('column_name'), 15, 512) ?>;
+                    let cells = `<td class="px-3 py-1.5 text-gray-400 text-xs">${data.row_number}</td>`;
+                    columns.forEach(col => {
+                        cells += `<td class="px-3 py-1.5 editable-cell focus:outline-none focus:bg-blue-50 cursor-text min-w-24"
+                        contenteditable="true"
+                        data-row-id="${data.row_id}"
+                        data-column="${col}"
+                        onblur="saveCell(this)"></td>`;
+                    });
+                    cells += `<td class="px-3 py-1.5 text-center">
+                    <button onclick="deleteRow(${data.row_id})" class="text-red-400 hover:text-red-600 text-xs">✕</button>
+                </td>`;
+                    const tr = document.createElement('tr');
+                    tr.id = `row-${data.row_id}`;
+                    tr.innerHTML = cells;
+                    tbody.appendChild(tr);
+                });
+        }
+
+        // Delete row via AJAX
+        function deleteRow(rowId) {
+            if (!confirm('Yakin ingin menghapus baris ini?')) return;
+
+            fetch('<?php echo e(route("datasets.delete_row", $dataset->id)); ?>', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '<?php echo e(csrf_token()); ?>',
+                },
+                body: JSON.stringify({ row_id: rowId }),
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById(`row-${rowId}`)?.remove();
+                    }
+                });
+        }
+    </script>
  <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal9ac128a9029c0e4701924bd2d73d7f54)): ?>

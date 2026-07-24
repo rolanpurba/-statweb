@@ -4,17 +4,28 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DatasetController;
 use App\Http\Controllers\AnalysisController;
+use Illuminate\Support\Facades\Auth;
 
 Route::get('/', function () {
     return view('welcome');
 });
 
 Route::middleware(['auth'])->group(function () {
+    // Dataset routes
     Route::get('/datasets', [DatasetController::class, 'index'])->name('datasets.index');
     Route::post('/datasets', [DatasetController::class, 'store'])->name('datasets.store');
     Route::get('/datasets/{dataset}', [DatasetController::class, 'show'])->name('datasets.show');
     Route::delete('/datasets/{dataset}', [DatasetController::class, 'destroy'])->name('datasets.destroy');
 
+    // Variable View (POST only — form ada di dalam show.blade.php)
+    Route::post('/datasets/{dataset}/variables', [DatasetController::class, 'updateVariables'])->name('datasets.update_variables');
+
+    // Data View editable (AJAX)
+    Route::post('/datasets/{dataset}/update-cell', [DatasetController::class, 'updateCell'])->name('datasets.update_cell');
+    Route::post('/datasets/{dataset}/add-row', [DatasetController::class, 'addRow'])->name('datasets.add_row');
+    Route::delete('/datasets/{dataset}/delete-row', [DatasetController::class, 'deleteRow'])->name('datasets.delete_row');
+
+    // Analysis routes
     Route::get('/datasets/{dataset}/analysis', [AnalysisController::class, 'create'])->name('analysis.create');
     Route::post('/datasets/{dataset}/analysis/descriptive', [AnalysisController::class, 'descriptive'])->name('analysis.descriptive');
     Route::post('/datasets/{dataset}/analysis/categorical', [AnalysisController::class, 'categorical'])->name('analysis.categorical');
@@ -31,7 +42,13 @@ Route::middleware(['auth'])->group(function () {
 });
 
 Route::get('/dashboard', function () {
-    return view('dashboard');
+    $userId = Auth::id();
+    $datasets = \App\Models\Dataset::where('user_id', $userId)->with('columns')->latest()->get();
+    $totalDatasets = $datasets->count();
+    $totalRows = \App\Models\DatasetRow::whereIn('dataset_id', $datasets->pluck('id'))->count();
+    $latestDataset = $datasets->first();
+    $recentDatasets = $datasets->take(5);
+    return view('dashboard', compact('totalDatasets', 'totalRows', 'latestDataset', 'recentDatasets'));
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {

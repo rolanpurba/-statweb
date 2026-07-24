@@ -13,7 +13,10 @@ class DatasetColumn extends Model
     protected $fillable = [
         'dataset_id',
         'column_name',
+        'label',
         'data_type',
+        'decimals',
+        'measure',
     ];
 
     public function dataset(): BelongsTo
