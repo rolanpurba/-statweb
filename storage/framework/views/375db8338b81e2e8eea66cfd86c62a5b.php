@@ -29,11 +29,16 @@
             <div class="mb-4 flex justify-between items-center">
                 <a href="<?php echo e(route('datasets.index')); ?>" class="text-indigo-600 hover:underline">
                     &larr; Kembali ke Daftar Dataset
-                </a>
-                <a href="<?php echo e(route('analysis.create', $dataset->id)); ?>"
-                   class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
-                    Analisis Statistik
-                </a>
+                    <div class="flex gap-2">
+                        <a href="<?php echo e(route('analysis.history', $dataset->id)); ?>"
+                           class="bg-gray-100 text-gray-700 px-4 py-2 rounded hover:bg-gray-200 text-sm">
+                            Riwayat Analisis
+                        </a>
+                        <a href="<?php echo e(route('analysis.create', $dataset->id)); ?>"
+                           class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm">
+                            Analisis Statistik
+                        </a>
+                    </div>
             </div>
 
             

@@ -39,6 +39,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/datasets/{dataset}/analysis/chi-square', [AnalysisController::class, 'chiSquare'])->name('analysis.chi_square');
     Route::post('/datasets/{dataset}/analysis/regression-simple', [AnalysisController::class, 'regressionSimple'])->name('analysis.regression_simple');
     Route::post('/datasets/{dataset}/analysis/regression-multiple', [AnalysisController::class, 'regressionMultiple'])->name('analysis.regression_multiple');
+    Route::get('/datasets/{dataset}/history', [AnalysisController::class, 'history'])->name('analysis.history');
+    Route::get('/datasets/{dataset}/history/{analysisResult}', [AnalysisController::class, 'historyShow'])->name('analysis.history_show');
 });
 
 Route::get('/dashboard', function () {

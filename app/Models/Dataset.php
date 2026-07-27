@@ -31,4 +31,9 @@ class Dataset extends Model
     {
         return $this->hasMany(DatasetRow::class)->orderBy('row_number');
     }
+
+    public function analysisResults(): HasMany
+    {
+        return $this->hasMany(AnalysisResult::class)->latest();
+    }
 }
