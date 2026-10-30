@@ -29,17 +29,17 @@ class AnalysisController extends Controller
         if (is_string($values)) return back()->withErrors(['column' => $values]);
         if (count($values) < 2) return back()->withErrors(['column' => 'Minimal dibutuhkan 2 baris data.']);
         $stats = [
-            'n'       => count($values),
-            'mean'    => Average::mean($values),
-            'median'  => Average::median($values),
-            'mode'    => $this->calculateMode($values),
-            'std_dev' => Descriptive::standardDeviation($values, Descriptive::SAMPLE),
-            'variance'=> Descriptive::sampleVariance($values),
-            'min'     => min($values),
-            'max'     => max($values),
-            'range'   => max($values) - min($values),
-            'q1'      => $this->quartileInclusive($values, 1),
-            'q3'      => $this->quartileInclusive($values, 3),
+            'n'        => count($values),
+            'mean'     => Average::mean($values),
+            'median'   => Average::median($values),
+            'mode'     => $this->calculateMode($values),
+            'std_dev'  => Descriptive::standardDeviation($values, Descriptive::SAMPLE),
+            'variance' => Descriptive::sampleVariance($values),
+            'min'      => min($values),
+            'max'      => max($values),
+            'range'    => max($values) - min($values),
+            'q1'       => $this->quartileInclusive($values, 1),
+            'q3'       => $this->quartileInclusive($values, 3),
         ];
         $histogram = $this->calculateHistogram($values);
 
@@ -49,7 +49,13 @@ class AnalysisController extends Controller
             ['stats' => $stats, 'histogram' => $histogram]
         );
 
-        return view('analysis.descriptive', compact('dataset', 'columnName', 'stats', 'values', 'histogram'));
+        $latestResult = AnalysisResult::where('dataset_id', $dataset->id)
+            ->where('analysis_type', 'descriptive')
+            ->where('user_id', Auth::id())
+            ->latest()
+            ->first();
+
+        return view('analysis.descriptive', compact('dataset', 'columnName', 'stats', 'values', 'histogram', 'latestResult'));
     }
 
     public function categorical(Request $request, Dataset $dataset)
@@ -79,18 +85,27 @@ class AnalysisController extends Controller
             ['frequencies' => $frequencies, 'total' => $total]
         );
 
-        return view('analysis.categorical', compact('dataset', 'columnName', 'frequencies', 'total'));
+        $latestResult = AnalysisResult::where('dataset_id', $dataset->id)
+            ->where('analysis_type', 'categorical')
+            ->where('user_id', Auth::id())
+            ->latest()
+            ->first();
+
+        return view('analysis.categorical', compact('dataset', 'columnName', 'frequencies', 'total', 'latestResult'));
     }
 
     public function scatter(Request $request, Dataset $dataset)
     {
         if ($dataset->user_id !== Auth::id()) abort(403);
         $request->validate(['column_x' => 'required|string', 'column_y' => 'required|string|different:column_x']);
-        $columnX = $request->column_x; $columnY = $request->column_y;
+        $columnX = $request->column_x;
+        $columnY = $request->column_y;
         $fullPath = storage_path('app/public/' . $dataset->file_path);
         $rows = Excel::toArray([], $fullPath);
-        $headerRow = $rows[0][0] ?? []; $dataRows = array_slice($rows[0], 1);
-        $indexX = array_search($columnX, $headerRow); $indexY = array_search($columnY, $headerRow);
+        $headerRow = $rows[0][0] ?? [];
+        $dataRows = array_slice($rows[0], 1);
+        $indexX = array_search($columnX, $headerRow);
+        $indexY = array_search($columnY, $headerRow);
         if ($indexX === false || $indexY === false) return back()->withErrors(['column_x' => 'Kolom tidak ditemukan.']);
         $points = [];
         foreach ($dataRows as $row) {
@@ -108,7 +123,13 @@ class AnalysisController extends Controller
             ['points' => $points]
         );
 
-        return view('analysis.scatter', compact('dataset', 'columnX', 'columnY', 'points'));
+        $latestResult = AnalysisResult::where('dataset_id', $dataset->id)
+            ->where('analysis_type', 'scatter')
+            ->where('user_id', Auth::id())
+            ->latest()
+            ->first();
+
+        return view('analysis.scatter', compact('dataset', 'columnX', 'columnY', 'points', 'latestResult'));
     }
 
     public function normality(Request $request, Dataset $dataset)
@@ -127,28 +148,38 @@ class AnalysisController extends Controller
         $this->saveResult($dataset, 'normality',
             "Uji Normalitas {$testName} — {$columnName}",
             ['column' => $columnName, 'test' => $testName],
-            ['result' => $result, 'n' => $n, 'testName' => $testName]
+            ['result' => $result, 'n' => $n, 'testName' => $testName, 'qqPoints' => $qqPoints]
         );
 
-        return view('analysis.normality', compact('dataset', 'columnName', 'n', 'testName', 'result', 'qqPoints'));
+        $latestResult = AnalysisResult::where('dataset_id', $dataset->id)
+            ->where('analysis_type', 'normality')
+            ->where('user_id', Auth::id())
+            ->latest()
+            ->first();
+
+        return view('analysis.normality', compact('dataset', 'columnName', 'n', 'testName', 'result', 'qqPoints', 'latestResult'));
     }
 
     public function tTestOneSample(Request $request, Dataset $dataset)
     {
         if ($dataset->user_id !== Auth::id()) abort(403);
         $request->validate(['column' => 'required|string', 'test_value' => 'required|numeric']);
-        $columnName = $request->column; $testValue = (float) $request->test_value;
+        $columnName = $request->column;
+        $testValue = (float) $request->test_value;
         $values = $this->getNumericValues($dataset, $columnName);
         if (is_string($values)) return back()->withErrors(['column' => $values]);
         if (count($values) < 2) return back()->withErrors(['column' => 'Minimal dibutuhkan 2 baris data.']);
-        $n = count($values); $mean = Average::mean($values);
+        $n = count($values);
+        $mean = Average::mean($values);
         $stdDev = Descriptive::standardDeviation($values, Descriptive::SAMPLE);
-        $se = $stdDev / sqrt($n); $t = ($mean - $testValue) / $se; $df = $n - 1;
+        $se = $stdDev / sqrt($n);
+        $t = ($mean - $testValue) / $se;
+        $df = $n - 1;
         $pValue = 2 * (1 - $this->tCDF(abs($t), $df));
         $result = [
             'n' => $n, 'mean' => round($mean, 4), 'std_dev' => round($stdDev, 4),
             'se' => round($se, 4), 't' => round($t, 4), 'df' => $df,
-            'p_value' => round($pValue, 4), 'test_value' => $testValue,
+            'p_value' => $this->formatPValue($pValue), 'test_value' => $testValue,
             'conclusion' => $pValue < 0.05
                 ? "Terdapat perbedaan signifikan antara rata-rata sampel ({$mean}) dengan nilai uji ({$testValue}) pada α = 0.05 (tolak H₀)"
                 : "Tidak terdapat perbedaan signifikan antara rata-rata sampel ({$mean}) dengan nilai uji ({$testValue}) pada α = 0.05 (gagal tolak H₀)",
@@ -161,36 +192,46 @@ class AnalysisController extends Controller
             $result
         );
 
-        return view('analysis.ttest_one_sample', compact('dataset', 'columnName', 'result'));
+        $latestResult = AnalysisResult::where('dataset_id', $dataset->id)
+            ->where('analysis_type', 'ttest_one_sample')
+            ->where('user_id', Auth::id())
+            ->latest()->first();
+
+        return view('analysis.ttest_one_sample', compact('dataset', 'columnName', 'result', 'latestResult'));
     }
 
     public function tTestIndependent(Request $request, Dataset $dataset)
     {
         if ($dataset->user_id !== Auth::id()) abort(403);
         $request->validate(['column_value' => 'required|string', 'column_group' => 'required|string|different:column_value']);
-        $columnValue = $request->column_value; $columnGroup = $request->column_group;
+        $columnValue = $request->column_value;
+        $columnGroup = $request->column_group;
         $fullPath = storage_path('app/public/' . $dataset->file_path);
         $rows = Excel::toArray([], $fullPath);
-        $headerRow = $rows[0][0] ?? []; $dataRows = array_slice($rows[0], 1);
+        $headerRow = $rows[0][0] ?? [];
+        $dataRows = array_slice($rows[0], 1);
         $indexValue = array_search($columnValue, $headerRow);
         $indexGroup = array_search($columnGroup, $headerRow);
         if ($indexValue === false || $indexGroup === false) return back()->withErrors(['column_value' => 'Kolom tidak ditemukan.']);
         $groups = [];
         foreach ($dataRows as $row) {
-            $val = $row[$indexValue] ?? null; $group = trim((string) ($row[$indexGroup] ?? ''));
-            if ($val === null || $val === '' || $group === '') continue;
-            $norm = str_replace(',', '.', (string) $val);
-            if (!is_numeric($norm)) continue;
+            $val = $row[$indexValue] ?? null;
+            $group = trim((string) ($row[$indexGroup] ?? ''));
+            if ($group === '') continue;
+            $norm = str_replace(',', '.', trim((string) ($val ?? '')));
+            if ($norm === '' || !is_numeric($norm)) continue;
             $groups[$group][] = (float) $norm;
         }
         if (count($groups) !== 2) return back()->withErrors(['column_group' => 'Kolom kelompok harus memiliki tepat 2 kategori. Ditemukan: ' . count($groups) . ' kategori.']);
         $groupNames = array_keys($groups);
-        $g1 = $groups[$groupNames[0]]; $g2 = $groups[$groupNames[1]];
+        $g1 = $groups[$groupNames[0]];
+        $g2 = $groups[$groupNames[1]];
         if (count($g1) < 2 || count($g2) < 2) return back()->withErrors(['column_group' => 'Setiap kelompok minimal harus memiliki 2 data.']);
         $n1 = count($g1); $n2 = count($g2);
         $mean1 = Average::mean($g1); $mean2 = Average::mean($g2);
         $var1 = Descriptive::sampleVariance($g1); $var2 = Descriptive::sampleVariance($g2);
-        $se = sqrt($var1/$n1 + $var2/$n2); $t = ($mean1 - $mean2) / $se;
+        $se = sqrt($var1/$n1 + $var2/$n2);
+        $t = ($mean1 - $mean2) / $se;
         $df = (int) floor((($var1/$n1 + $var2/$n2) ** 2) / ((($var1/$n1)**2)/($n1-1) + (($var2/$n2)**2)/($n2-1)));
         $pValue = 2 * (1 - $this->tCDF(abs($t), $df));
         $result = [
@@ -198,7 +239,8 @@ class AnalysisController extends Controller
             'n1' => $n1, 'n2' => $n2,
             'mean1' => round($mean1, 4), 'mean2' => round($mean2, 4),
             'std1' => round(sqrt($var1), 4), 'std2' => round(sqrt($var2), 4),
-            't' => round($t, 4), 'df' => $df, 'p_value' => round($pValue, 4),
+            't' => round($t, 4), 'df' => $df,
+            'p_value' => $this->formatPValue($pValue),
             'conclusion' => $pValue < 0.05
                 ? "Terdapat perbedaan signifikan antara kelompok {$groupNames[0]} dan {$groupNames[1]} pada α = 0.05 (tolak H₀)"
                 : "Tidak terdapat perbedaan signifikan antara kelompok {$groupNames[0]} dan {$groupNames[1]} pada α = 0.05 (gagal tolak H₀)",
@@ -211,36 +253,51 @@ class AnalysisController extends Controller
             $result
         );
 
-        return view('analysis.ttest_independent', compact('dataset', 'columnValue', 'columnGroup', 'result'));
+        $latestResult = AnalysisResult::where('dataset_id', $dataset->id)
+            ->where('analysis_type', 'ttest_independent')
+            ->where('user_id', Auth::id())
+            ->latest()->first();
+
+        return view('analysis.ttest_independent', compact('dataset', 'columnValue', 'columnGroup', 'result', 'latestResult'));
     }
 
     public function tTestPaired(Request $request, Dataset $dataset)
     {
         if ($dataset->user_id !== Auth::id()) abort(403);
         $request->validate(['column_1' => 'required|string', 'column_2' => 'required|string|different:column_1']);
-        $column1 = $request->column_1; $column2 = $request->column_2;
+        $column1 = $request->column_1;
+        $column2 = $request->column_2;
         $fullPath = storage_path('app/public/' . $dataset->file_path);
         $rows = Excel::toArray([], $fullPath);
-        $headerRow = $rows[0][0] ?? []; $dataRows = array_slice($rows[0], 1);
-        $index1 = array_search($column1, $headerRow); $index2 = array_search($column2, $headerRow);
+        $headerRow = $rows[0][0] ?? [];
+        $dataRows = array_slice($rows[0], 1);
+        $index1 = array_search($column1, $headerRow);
+        $index2 = array_search($column2, $headerRow);
         if ($index1 === false || $index2 === false) return back()->withErrors(['column_1' => 'Kolom tidak ditemukan.']);
         $val1 = []; $val2 = [];
         foreach ($dataRows as $row) {
             $v1 = $row[$index1] ?? null; $v2 = $row[$index2] ?? null;
             if ($v1 === null || $v1 === '' || $v2 === null || $v2 === '') continue;
-            $n1 = str_replace(',', '.', (string) $v1); $n2 = str_replace(',', '.', (string) $v2);
+            $n1 = str_replace(',', '.', (string) $v1);
+            $n2 = str_replace(',', '.', (string) $v2);
             if (is_numeric($n1) && is_numeric($n2)) { $val1[] = (float) $n1; $val2[] = (float) $n2; }
         }
         if (count($val1) < 2) return back()->withErrors(['column_1' => 'Minimal dibutuhkan 2 pasangan data valid.']);
         $differences = array_map(fn($a, $b) => $a - $b, $val1, $val2);
-        $n = count($differences); $dMean = Average::mean($differences);
+        $n = count($differences);
+        $dMean = Average::mean($differences);
         $dStd = Descriptive::standardDeviation($differences, Descriptive::SAMPLE);
-        $se = $dStd / sqrt($n); $t = $dMean / $se; $df = $n - 1;
+        $se = $dStd / sqrt($n);
+        $t = $dMean / $se;
+        $df = $n - 1;
         $pValue = 2 * (1 - $this->tCDF(abs($t), $df));
         $result = [
-            'n' => $n, 'mean1' => round(Average::mean($val1), 4), 'mean2' => round(Average::mean($val2), 4),
+            'n' => $n,
+            'mean1' => round(Average::mean($val1), 4),
+            'mean2' => round(Average::mean($val2), 4),
             'd_mean' => round($dMean, 4), 'd_std' => round($dStd, 4), 'se' => round($se, 4),
-            't' => round($t, 4), 'df' => $df, 'p_value' => round($pValue, 4),
+            't' => round($t, 4), 'df' => $df,
+            'p_value' => $this->formatPValue($pValue),
             'conclusion' => $pValue < 0.05
                 ? "Terdapat perbedaan signifikan antara {$column1} dan {$column2} pada α = 0.05 (tolak H₀)"
                 : "Tidak terdapat perbedaan signifikan antara {$column1} dan {$column2} pada α = 0.05 (gagal tolak H₀)",
@@ -253,34 +310,44 @@ class AnalysisController extends Controller
             $result
         );
 
-        return view('analysis.ttest_paired', compact('dataset', 'column1', 'column2', 'result'));
+        $latestResult = AnalysisResult::where('dataset_id', $dataset->id)
+            ->where('analysis_type', 'ttest_paired')
+            ->where('user_id', Auth::id())
+            ->latest()->first();
+
+        return view('analysis.ttest_paired', compact('dataset', 'column1', 'column2', 'result', 'latestResult'));
     }
 
     public function anova(Request $request, Dataset $dataset)
     {
         if ($dataset->user_id !== Auth::id()) abort(403);
         $request->validate(['column_value' => 'required|string', 'column_group' => 'required|string|different:column_value']);
-        $columnValue = $request->column_value; $columnGroup = $request->column_group;
+        $columnValue = $request->column_value;
+        $columnGroup = $request->column_group;
         $fullPath = storage_path('app/public/' . $dataset->file_path);
         $rows = Excel::toArray([], $fullPath);
-        $headerRow = $rows[0][0] ?? []; $dataRows = array_slice($rows[0], 1);
+        $headerRow = $rows[0][0] ?? [];
+        $dataRows = array_slice($rows[0], 1);
         $indexValue = array_search($columnValue, $headerRow);
         $indexGroup = array_search($columnGroup, $headerRow);
         if ($indexValue === false || $indexGroup === false) return back()->withErrors(['column_value' => 'Kolom tidak ditemukan.']);
         $groups = [];
         foreach ($dataRows as $row) {
-            $val = $row[$indexValue] ?? null; $group = trim((string) ($row[$indexGroup] ?? ''));
-            if ($val === null || $val === '' || $group === '') continue;
-            $norm = str_replace(',', '.', (string) $val);
-            if (!is_numeric($norm)) continue;
+            $val = $row[$indexValue] ?? null;
+            $group = trim((string) ($row[$indexGroup] ?? ''));
+            if ($group === '') continue;
+            $norm = str_replace(',', '.', trim((string) ($val ?? '')));
+            if ($norm === '' || !is_numeric($norm)) continue;
             $groups[$group][] = (float) $norm;
         }
         if (count($groups) < 2) return back()->withErrors(['column_group' => 'Minimal dibutuhkan 2 kelompok untuk ANOVA.']);
         foreach ($groups as $g => $vals) {
             if (count($vals) < 2) return back()->withErrors(['column_group' => "Kelompok '{$g}' hanya memiliki " . count($vals) . " data."]);
         }
-        $k = count($groups); $allValues = array_merge(...array_values($groups));
-        $N = count($allValues); $grandMean = Average::mean($allValues);
+        $k = count($groups);
+        $allValues = array_merge(...array_values($groups));
+        $N = count($allValues);
+        $grandMean = Average::mean($allValues);
         $ssb = 0; $groupStats = [];
         foreach ($groups as $name => $vals) {
             $ni = count($vals); $mi = Average::mean($vals);
@@ -288,14 +355,20 @@ class AnalysisController extends Controller
             $groupStats[$name] = ['n' => $ni, 'mean' => round($mi, 4), 'std' => round(Descriptive::standardDeviation($vals, Descriptive::SAMPLE), 4)];
         }
         $ssw = 0;
-        foreach ($groups as $vals) { $mi = Average::mean($vals); foreach ($vals as $v) $ssw += ($v - $mi) ** 2; }
-        $dfB = $k - 1; $dfW = $N - $k; $msb = $ssb / $dfB; $msw = $ssw / $dfW; $f = $msb / $msw;
+        foreach ($groups as $vals) {
+            $mi = Average::mean($vals);
+            foreach ($vals as $v) $ssw += ($v - $mi) ** 2;
+        }
+        $dfB = $k - 1; $dfW = $N - $k;
+        $msb = $ssb / $dfB; $msw = $ssw / $dfW;
+        $f = $msb / $msw;
         $pValue = $this->fPValue($f, $dfB, $dfW);
         $result = [
             'k' => $k, 'N' => $N, 'grand_mean' => round($grandMean, 4),
             'ssb' => round($ssb, 4), 'ssw' => round($ssw, 4),
-            'dfb' => $dfB, 'dfw' => $dfW, 'msb' => round($msb, 4), 'msw' => round($msw, 4),
-            'f' => round($f, 4), 'p_value' => round($pValue, 4),
+            'dfb' => $dfB, 'dfw' => $dfW,
+            'msb' => round($msb, 4), 'msw' => round($msw, 4),
+            'f' => round($f, 4), 'p_value' => $this->formatPValue($pValue),
             'conclusion' => $pValue < 0.05
                 ? "Terdapat perbedaan rata-rata yang signifikan antar kelompok pada α = 0.05 (tolak H₀)"
                 : "Tidak terdapat perbedaan rata-rata yang signifikan antar kelompok pada α = 0.05 (gagal tolak H₀)",
@@ -308,18 +381,25 @@ class AnalysisController extends Controller
             ['result' => $result, 'groupStats' => $groupStats]
         );
 
-        return view('analysis.anova', compact('dataset', 'columnValue', 'columnGroup', 'groupStats', 'result'));
+        $latestResult = AnalysisResult::where('dataset_id', $dataset->id)
+            ->where('analysis_type', 'anova')
+            ->where('user_id', Auth::id())
+            ->latest()->first();
+
+        return view('analysis.anova', compact('dataset', 'columnValue', 'columnGroup', 'groupStats', 'result', 'latestResult'));
     }
 
     public function correlation(Request $request, Dataset $dataset)
     {
         if ($dataset->user_id !== Auth::id()) abort(403);
         $request->validate(['column_x' => 'required|string', 'column_y' => 'required|string|different:column_x', 'method' => 'required|in:pearson,spearman']);
-        $columnX = $request->column_x; $columnY = $request->column_y; $method = $request->method;
+        $columnX = $request->column_x; $columnY = $request->column_y; $method = $request->method();
         $fullPath = storage_path('app/public/' . $dataset->file_path);
         $rows = Excel::toArray([], $fullPath);
-        $headerRow = $rows[0][0] ?? []; $dataRows = array_slice($rows[0], 1);
-        $indexX = array_search($columnX, $headerRow); $indexY = array_search($columnY, $headerRow);
+        $headerRow = $rows[0][0] ?? [];
+        $dataRows = array_slice($rows[0], 1);
+        $indexX = array_search($columnX, $headerRow);
+        $indexY = array_search($columnY, $headerRow);
         if ($indexX === false || $indexY === false) return back()->withErrors(['column_x' => 'Kolom tidak ditemukan.']);
         $xValues = []; $yValues = [];
         foreach ($dataRows as $row) {
@@ -331,7 +411,8 @@ class AnalysisController extends Controller
         $n = count($xValues);
         if ($method === 'pearson') { $r = $this->pearsonR($xValues, $yValues); $methodName = 'Pearson'; }
         else { $r = $this->spearmanR($xValues, $yValues); $methodName = 'Spearman'; }
-        $t = $r * sqrt($n - 2) / sqrt(max(1e-10, 1 - $r * $r)); $df = $n - 2;
+        $t = $r * sqrt($n - 2) / sqrt(max(1e-10, 1 - $r * $r));
+        $df = $n - 2;
         $pValue = 2 * (1 - $this->tCDF(abs($t), $df));
         $absR = abs($r);
         if ($absR >= 0.8) $strength = 'Sangat Kuat';
@@ -342,7 +423,8 @@ class AnalysisController extends Controller
         $direction = $r >= 0 ? 'Positif' : 'Negatif';
         $result = [
             'n' => $n, 'r' => round($r, 4), 't' => round($t, 4), 'df' => $df,
-            'p_value' => round($pValue, 4), 'strength' => $strength, 'direction' => $direction,
+            'p_value' => $this->formatPValue($pValue),
+            'strength' => $strength, 'direction' => $direction,
             'conclusion' => $pValue < 0.05
                 ? "Terdapat korelasi {$direction} yang signifikan ({$strength}) antara {$columnX} dan {$columnY} (r = " . round($r, 4) . ", p < 0.05, tolak H₀)"
                 : "Tidak terdapat korelasi yang signifikan antara {$columnX} dan {$columnY} (r = " . round($r, 4) . ", p ≥ 0.05, gagal tolak H₀)",
@@ -353,10 +435,15 @@ class AnalysisController extends Controller
         $this->saveResult($dataset, 'correlation',
             "Korelasi {$methodName} — {$columnX} vs {$columnY}",
             ['column_x' => $columnX, 'column_y' => $columnY, 'method' => $method],
-            ['result' => $result]
+            ['result' => $result, 'points' => $points]
         );
 
-        return view('analysis.correlation', compact('dataset', 'columnX', 'columnY', 'method', 'methodName', 'result', 'points'));
+        $latestResult = AnalysisResult::where('dataset_id', $dataset->id)
+            ->where('analysis_type', 'correlation')
+            ->where('user_id', Auth::id())
+            ->latest()->first();
+
+        return view('analysis.correlation', compact('dataset', 'columnX', 'columnY', 'method', 'methodName', 'result', 'points', 'latestResult'));
     }
 
     public function chiSquare(Request $request, Dataset $dataset)
@@ -366,12 +453,15 @@ class AnalysisController extends Controller
         $column1 = $request->column_1; $column2 = $request->column_2;
         $fullPath = storage_path('app/public/' . $dataset->file_path);
         $rows = Excel::toArray([], $fullPath);
-        $headerRow = $rows[0][0] ?? []; $dataRows = array_slice($rows[0], 1);
-        $index1 = array_search($column1, $headerRow); $index2 = array_search($column2, $headerRow);
+        $headerRow = $rows[0][0] ?? [];
+        $dataRows = array_slice($rows[0], 1);
+        $index1 = array_search($column1, $headerRow);
+        $index2 = array_search($column2, $headerRow);
         if ($index1 === false || $index2 === false) return back()->withErrors(['column_1' => 'Kolom tidak ditemukan.']);
         $contingency = []; $rows1 = []; $cols2 = [];
         foreach ($dataRows as $row) {
-            $v1 = trim((string) ($row[$index1] ?? '')); $v2 = trim((string) ($row[$index2] ?? ''));
+            $v1 = trim((string) ($row[$index1] ?? ''));
+            $v2 = trim((string) ($row[$index2] ?? ''));
             if ($v1 === '' || $v2 === '') continue;
             $contingency[$v1][$v2] = ($contingency[$v1][$v2] ?? 0) + 1;
             $rows1[$v1] = true; $cols2[$v2] = true;
@@ -401,7 +491,8 @@ class AnalysisController extends Controller
         $pValue = $this->chiSquarePValue($chiSq, $df);
         $cramersV = sqrt($chiSq / ($N * min(count($rowLabels) - 1, count($colLabels) - 1)));
         $result = [
-            'chi_sq' => round($chiSq, 4), 'df' => $df, 'p_value' => round($pValue, 4),
+            'chi_sq' => round($chiSq, 4), 'df' => $df,
+            'p_value' => $this->formatPValue($pValue),
             'n' => $N, 'cramers_v' => round($cramersV, 4),
             'conclusion' => $pValue < 0.05
                 ? "Terdapat hubungan yang signifikan antara {$column1} dan {$column2} pada α = 0.05 (tolak H₀)"
@@ -415,7 +506,12 @@ class AnalysisController extends Controller
             ['result' => $result, 'rowLabels' => $rowLabels, 'colLabels' => $colLabels, 'observed' => $observed, 'expected' => $expected]
         );
 
-        return view('analysis.chi_square', compact('dataset', 'column1', 'column2', 'result', 'rowLabels', 'colLabels', 'observed', 'expected', 'rowTotals', 'colTotals', 'N'));
+        $latestResult = AnalysisResult::where('dataset_id', $dataset->id)
+            ->where('analysis_type', 'chi_square')
+            ->where('user_id', Auth::id())
+            ->latest()->first();
+
+        return view('analysis.chi_square', compact('dataset', 'column1', 'column2', 'result', 'rowLabels', 'colLabels', 'observed', 'expected', 'rowTotals', 'colTotals', 'N', 'latestResult'));
     }
 
     public function regressionSimple(Request $request, Dataset $dataset)
@@ -425,8 +521,10 @@ class AnalysisController extends Controller
         $columnX = $request->column_x; $columnY = $request->column_y;
         $fullPath = storage_path('app/public/' . $dataset->file_path);
         $rows = Excel::toArray([], $fullPath);
-        $headerRow = $rows[0][0] ?? []; $dataRows = array_slice($rows[0], 1);
-        $indexX = array_search($columnX, $headerRow); $indexY = array_search($columnY, $headerRow);
+        $headerRow = $rows[0][0] ?? [];
+        $dataRows = array_slice($rows[0], 1);
+        $indexX = array_search($columnX, $headerRow);
+        $indexY = array_search($columnY, $headerRow);
         if ($indexX === false || $indexY === false) return back()->withErrors(['column_x' => 'Kolom tidak ditemukan.']);
         $xValues = []; $yValues = [];
         foreach ($dataRows as $row) {
@@ -435,37 +533,44 @@ class AnalysisController extends Controller
             if (is_numeric($vx) && is_numeric($vy)) { $xValues[] = (float) $vx; $yValues[] = (float) $vy; }
         }
         if (count($xValues) < 3) return back()->withErrors(['column_x' => 'Minimal dibutuhkan 3 pasangan data.']);
-        $n = count($xValues); $meanX = Average::mean($xValues); $meanY = Average::mean($yValues);
+        $n = count($xValues);
+        $meanX = Average::mean($xValues); $meanY = Average::mean($yValues);
         $ssXX = 0; $ssXY = 0;
         for ($i = 0; $i < $n; $i++) {
             $ssXX += ($xValues[$i] - $meanX) ** 2;
             $ssXY += ($xValues[$i] - $meanX) * ($yValues[$i] - $meanY);
         }
-        $b1 = $ssXX > 0 ? $ssXY / $ssXX : 0; $b0 = $meanY - $b1 * $meanX;
-        $ssRes = 0; $ssTot = 0; $yPred = [];
+        $b1 = $ssXX > 0 ? $ssXY / $ssXX : 0;
+        $b0 = $meanY - $b1 * $meanX;
+        $ssRes = 0; $ssTot = 0;
         for ($i = 0; $i < $n; $i++) {
-            $pred = $b0 + $b1 * $xValues[$i]; $yPred[] = $pred;
+            $pred = $b0 + $b1 * $xValues[$i];
             $ssRes += ($yValues[$i] - $pred) ** 2;
             $ssTot += ($yValues[$i] - $meanY) ** 2;
         }
-        $ssReg = $ssTot - $ssRes; $r2 = $ssTot > 0 ? $ssReg / $ssTot : 0;
+        $ssReg = $ssTot - $ssRes;
+        $r2 = $ssTot > 0 ? $ssReg / $ssTot : 0;
         $r2Adj = 1 - (1 - $r2) * ($n - 1) / ($n - 2);
-        $mse = $n > 2 ? $ssRes / ($n - 2) : 0; $se = sqrt($mse);
-        $dfReg = 1; $dfRes = $n - 2; $msReg = $ssReg / $dfReg;
-        $f = $mse > 0 ? $msReg / $mse : 0; $fPValue = $this->fPValue($f, $dfReg, $dfRes);
+        $mse = $n > 2 ? $ssRes / ($n - 2) : 0;
+        $se = sqrt($mse);
+        $dfReg = 1; $dfRes = $n - 2;
+        $msReg = $ssReg / $dfReg;
+        $f = $mse > 0 ? $msReg / $mse : 0;
+        $fPValue = $this->fPValue($f, $dfReg, $dfRes);
         $seB1 = $ssXX > 0 ? sqrt($mse / $ssXX) : 0;
         $seB0 = sqrt($mse * (1/$n + ($meanX**2) / $ssXX));
-        $tB1 = $seB1 > 0 ? $b1 / $seB1 : 0; $tB0 = $seB0 > 0 ? $b0 / $seB0 : 0;
+        $tB1 = $seB1 > 0 ? $b1 / $seB1 : 0;
+        $tB0 = $seB0 > 0 ? $b0 / $seB0 : 0;
         $pB1 = 2 * (1 - $this->tCDF(abs($tB1), $dfRes));
         $pB0 = 2 * (1 - $this->tCDF(abs($tB0), $dfRes));
         $result = [
             'n' => $n, 'b0' => round($b0, 4), 'b1' => round($b1, 4),
             'r2' => round($r2, 4), 'r2_adj' => round($r2Adj, 4), 'se' => round($se, 4),
             'f' => round($f, 4), 'df_reg' => $dfReg, 'df_res' => $dfRes,
-            'f_pvalue' => round($fPValue, 4),
+            'f_pvalue' => $this->formatPValue($fPValue),
             'se_b0' => round($seB0, 4), 'se_b1' => round($seB1, 4),
             't_b0' => round($tB0, 4), 't_b1' => round($tB1, 4),
-            'p_b0' => round($pB0, 4), 'p_b1' => round($pB1, 4),
+            'p_b0' => $this->formatPValue($pB0), 'p_b1' => $this->formatPValue($pB1),
             'equation' => 'Ŷ = ' . round($b0, 4) . ' + ' . round($b1, 4) . ' × ' . $columnX,
             'conclusion' => $fPValue < 0.05
                 ? "Model regresi signifikan pada α = 0.05 — {$columnX} berpengaruh signifikan terhadap {$columnY} (tolak H₀)"
@@ -479,10 +584,15 @@ class AnalysisController extends Controller
         $this->saveResult($dataset, 'regression_simple',
             "Regresi Sederhana — {$columnX} → {$columnY}",
             ['column_x' => $columnX, 'column_y' => $columnY],
-            $result
+            array_merge($result, ['points' => $points, 'regressionLine' => $regressionLine])
         );
 
-        return view('analysis.regression_simple', compact('dataset', 'columnX', 'columnY', 'result', 'points', 'regressionLine'));
+        $latestResult = AnalysisResult::where('dataset_id', $dataset->id)
+            ->where('analysis_type', 'regression_simple')
+            ->where('user_id', Auth::id())
+            ->latest()->first();
+
+        return view('analysis.regression_simple', compact('dataset', 'columnX', 'columnY', 'result', 'points', 'regressionLine', 'latestResult'));
     }
 
     public function regressionMultiple(Request $request, Dataset $dataset)
@@ -493,7 +603,8 @@ class AnalysisController extends Controller
         if (in_array($columnY, $columnsX)) return back()->withErrors(['column_y' => 'Variabel Y tidak boleh sama dengan salah satu variabel X.']);
         $fullPath = storage_path('app/public/' . $dataset->file_path);
         $rows = Excel::toArray([], $fullPath);
-        $headerRow = $rows[0][0] ?? []; $dataRows = array_slice($rows[0], 1);
+        $headerRow = $rows[0][0] ?? [];
+        $dataRows = array_slice($rows[0], 1);
         $indexY = array_search($columnY, $headerRow);
         $indexXs = array_map(fn($col) => array_search($col, $headerRow), $columnsX);
         if ($indexY === false || in_array(false, $indexXs)) return back()->withErrors(['column_y' => 'Satu atau lebih kolom tidak ditemukan.']);
@@ -516,19 +627,21 @@ class AnalysisController extends Controller
         $beta = $this->olsCoefficients($X, $yValues);
         if ($beta === null) return back()->withErrors(['column_y' => 'Matriks tidak dapat diinvers (multikolinearitas).']);
         $meanY = Average::mean($yValues);
-        $ssRes = 0; $ssTot = 0; $yPred = [];
+        $ssRes = 0; $ssTot = 0;
         for ($i = 0; $i < $n; $i++) {
             $pred = 0;
             for ($j = 0; $j <= $p; $j++) $pred += $beta[$j] * $X[$i][$j];
-            $yPred[] = $pred;
             $ssRes += ($yValues[$i] - $pred) ** 2;
             $ssTot += ($yValues[$i] - $meanY) ** 2;
         }
-        $ssReg = $ssTot - $ssRes; $r2 = $ssTot > 0 ? $ssReg / $ssTot : 0;
+        $ssReg = $ssTot - $ssRes;
+        $r2 = $ssTot > 0 ? $ssReg / $ssTot : 0;
         $r2Adj = 1 - (1 - $r2) * ($n - 1) / ($n - $p - 1);
         $mse = $ssRes / ($n - $p - 1); $se = sqrt($mse);
-        $dfReg = $p; $dfRes = $n - $p - 1; $msReg = $ssReg / $dfReg;
-        $f = $mse > 0 ? $msReg / $mse : 0; $fPValue = $this->fPValue($f, $dfReg, $dfRes);
+        $dfReg = $p; $dfRes = $n - $p - 1;
+        $msReg = $ssReg / $dfReg;
+        $f = $mse > 0 ? $msReg / $mse : 0;
+        $fPValue = $this->fPValue($f, $dfReg, $dfRes);
         $XtX = $this->matMul($this->matTranspose($X), $X);
         $XtXInv = $this->matInverse($XtX);
         $seCoef = [];
@@ -537,7 +650,11 @@ class AnalysisController extends Controller
         for ($j = 0; $j <= $p; $j++) {
             $tVal = $seCoef[$j] > 0 ? $beta[$j] / $seCoef[$j] : 0;
             $pVal = 2 * (1 - $this->tCDF(abs($tVal), $dfRes));
-            $coefficients[] = ['label' => $labels[$j], 'coefficient' => round($beta[$j], 4), 'se' => round($seCoef[$j], 4), 't' => round($tVal, 4), 'p_value' => round($pVal, 4), 'significant' => $pVal < 0.05];
+            $coefficients[] = [
+                'label' => $labels[$j], 'coefficient' => round($beta[$j], 4),
+                'se' => round($seCoef[$j], 4), 't' => round($tVal, 4),
+                'p_value' => $this->formatPValue($pVal), 'significant' => $pVal < 0.05
+            ];
         }
         $eq = 'Ŷ = ' . round($beta[0], 4);
         for ($j = 1; $j <= $p; $j++) {
@@ -547,7 +664,7 @@ class AnalysisController extends Controller
         $result = [
             'n' => $n, 'p' => $p, 'r2' => round($r2, 4), 'r2_adj' => round($r2Adj, 4),
             'se' => round($se, 4), 'f' => round($f, 4), 'df_reg' => $dfReg, 'df_res' => $dfRes,
-            'f_pvalue' => round($fPValue, 4), 'equation' => $eq,
+            'f_pvalue' => $this->formatPValue($fPValue), 'equation' => $eq,
             'conclusion' => $fPValue < 0.05
                 ? "Model regresi berganda signifikan pada α = 0.05 (tolak H₀)"
                 : "Model regresi berganda tidak signifikan pada α = 0.05 (gagal tolak H₀)",
@@ -560,20 +677,21 @@ class AnalysisController extends Controller
             ['result' => $result, 'coefficients' => $coefficients]
         );
 
-        return view('analysis.regression_multiple', compact('dataset', 'columnY', 'columnsX', 'result', 'coefficients'));
+        $latestResult = AnalysisResult::where('dataset_id', $dataset->id)
+            ->where('analysis_type', 'regression_multiple')
+            ->where('user_id', Auth::id())
+            ->latest()->first();
+
+        return view('analysis.regression_multiple', compact('dataset', 'columnY', 'columnsX', 'result', 'coefficients', 'latestResult'));
     }
 
-    // Halaman riwayat analisis per dataset
     public function history(Dataset $dataset)
     {
         if ($dataset->user_id !== Auth::id()) abort(403);
-        $histories = AnalysisResult::where('dataset_id', $dataset->id)
-            ->latest()
-            ->paginate(20);
+        $histories = AnalysisResult::where('dataset_id', $dataset->id)->latest()->paginate(20);
         return view('analysis.history', compact('dataset', 'histories'));
     }
 
-    // Tampilkan detail satu hasil analisis dari riwayat
     public function historyShow(Dataset $dataset, AnalysisResult $analysisResult)
     {
         if ($dataset->user_id !== Auth::id()) abort(403);
@@ -583,7 +701,6 @@ class AnalysisController extends Controller
 
     // ==================== PRIVATE HELPERS ====================
 
-    // Simpan hasil analisis ke database
     private function saveResult(Dataset $dataset, string $type, string $label, array $parameters, array $result): void
     {
         AnalysisResult::create([
@@ -596,9 +713,16 @@ class AnalysisController extends Controller
         ]);
     }
 
+    private function formatPValue(float $pValue): string
+    {
+        if ($pValue < 0.0001) return '< 0.0001';
+        return (string) round($pValue, 4);
+    }
+
     private function olsCoefficients(array $X, array $y): ?array
     {
-        $Xt = $this->matTranspose($X); $XtX = $this->matMul($Xt, $X);
+        $Xt = $this->matTranspose($X);
+        $XtX = $this->matMul($Xt, $X);
         $XtXInv = $this->matInverse($XtX);
         if ($XtXInv === null) return null;
         $XtY = $this->matVecMul($Xt, $y);
@@ -766,7 +890,8 @@ class AnalysisController extends Controller
     private function logGamma(float $x): float
     {
         $g = 7;
-        $c = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313, -176.61502916214059, 12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
+        $c = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313,
+            -176.61502916214059, 12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
         if ($x < 0.5) return log(M_PI / sin(M_PI * $x)) - $this->logGamma(1 - $x);
         $x -= 1; $a = $c[0]; $t = $x + $g + 0.5;
         for ($i = 1; $i < 9; $i++) $a += $c[$i] / ($x + $i);
@@ -777,7 +902,8 @@ class AnalysisController extends Controller
     {
         $fullPath = storage_path('app/public/' . $dataset->file_path);
         $rows = Excel::toArray([], $fullPath);
-        $headerRow = $rows[0][0] ?? []; $dataRows = array_slice($rows[0], 1);
+        $headerRow = $rows[0][0] ?? [];
+        $dataRows = array_slice($rows[0], 1);
         $columnIndex = array_search($columnName, $headerRow);
         if ($columnIndex === false) return 'Kolom tidak ditemukan.';
         $values = [];
@@ -795,8 +921,10 @@ class AnalysisController extends Controller
     private function shapiroWilk(array $values): array
     {
         $x = $values; sort($x); $n = count($x); $mean = Average::mean($x);
-        $m = []; for ($i = 1; $i <= $n; $i++) $m[] = $this->normalQuantile(($i - 0.375) / ($n + 0.25));
-        $mDotM = array_sum(array_map(fn($mi) => $mi * $mi, $m)); $sqrtMDotM = sqrt($mDotM);
+        $m = [];
+        for ($i = 1; $i <= $n; $i++) $m[] = $this->normalQuantile(($i - 0.375) / ($n + 0.25));
+        $mDotM = array_sum(array_map(fn($mi) => $mi * $mi, $m));
+        $sqrtMDotM = sqrt($mDotM);
         $numerator = 0; $k = (int) floor($n / 2);
         for ($i = 0; $i < $k; $i++) $numerator += ($m[$n-1-$i] / $sqrtMDotM) * ($x[$n-1-$i] - $x[$i]);
         $denominator = array_sum(array_map(fn($xi) => ($xi - $mean) ** 2, $x));
@@ -804,15 +932,21 @@ class AnalysisController extends Controller
         $mu = 0.0038915*($n**3) - 0.083751*($n**2) - 0.31082*$n - 1.5861;
         $sigma = exp(0.0030302*($n**2) - 0.082676*$n - 0.4803);
         $pValue = min(1.0, max(0.0001, 1 - $this->normalCDF((log(1-$W) - $mu) / $sigma)));
-        return ['statistic' => round($W, 4), 'p_value' => round($pValue, 4),
-            'conclusion' => $pValue > 0.05 ? 'Data berdistribusi normal (p > 0.05, gagal tolak H₀)' : 'Data tidak berdistribusi normal (p ≤ 0.05, tolak H₀)',
-            'normal' => $pValue > 0.05];
+        return [
+            'statistic' => round($W, 4),
+            'p_value' => $this->formatPValue($pValue),
+            'conclusion' => $pValue > 0.05
+                ? 'Data berdistribusi normal (p > 0.05, gagal tolak H₀)'
+                : 'Data tidak berdistribusi normal (p ≤ 0.05, tolak H₀)',
+            'normal' => $pValue > 0.05,
+        ];
     }
 
     private function kolmogorovSmirnov(array $values): array
     {
         $x = $values; sort($x); $n = count($x);
-        $mean = Average::mean($x); $stdDev = Descriptive::standardDeviation($x, Descriptive::SAMPLE);
+        $mean = Average::mean($x);
+        $stdDev = Descriptive::standardDeviation($x, Descriptive::SAMPLE);
         $dMax = 0;
         foreach ($x as $i => $xi) {
             $z = $stdDev > 0 ? ($xi - $mean) / $stdDev : 0;
@@ -824,15 +958,21 @@ class AnalysisController extends Controller
         elseif ($dStar < 0.5) $pValue = max(0.2, 2*exp(-2*$dStar*$dStar*1.1));
         else $pValue = max(0.001, 2*exp(-2*$dStar*$dStar));
         $pValue = min(1.0, max(0.001, $pValue));
-        return ['statistic' => round($dMax, 4), 'p_value' => round($pValue, 4),
-            'conclusion' => $pValue > 0.05 ? 'Data berdistribusi normal (p > 0.05, gagal tolak H₀)' : 'Data tidak berdistribusi normal (p ≤ 0.05, tolak H₀)',
-            'normal' => $pValue > 0.05];
+        return [
+            'statistic' => round($dMax, 4),
+            'p_value' => $this->formatPValue($pValue),
+            'conclusion' => $pValue > 0.05
+                ? 'Data berdistribusi normal (p > 0.05, gagal tolak H₀)'
+                : 'Data tidak berdistribusi normal (p ≤ 0.05, tolak H₀)',
+            'normal' => $pValue > 0.05,
+        ];
     }
 
     private function calculateQQPoints(array $values): array
     {
         $x = $values; sort($x); $n = count($x);
-        $mean = Average::mean($x); $stdDev = Descriptive::standardDeviation($x, Descriptive::SAMPLE);
+        $mean = Average::mean($x);
+        $stdDev = Descriptive::standardDeviation($x, Descriptive::SAMPLE);
         $points = [];
         for ($i = 0; $i < $n; $i++) {
             $p = ($i + 1 - 0.375) / ($n + 0.25);
@@ -844,19 +984,30 @@ class AnalysisController extends Controller
     private function normalQuantile(float $p): float
     {
         if ($p <= 0) return -8; if ($p >= 1) return 8;
-        $a = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02, 1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
-        $b = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02, 6.680131188771972e+01, -1.328068155288572e+01];
-        $c = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00, -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
+        $a = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02,
+            1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
+        $b = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02,
+            6.680131188771972e+01, -1.328068155288572e+01];
+        $c = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00,
+            -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
         $d = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00, 3.754408661907416e+00];
         $pLow = 0.02425; $pHigh = 1 - $pLow;
-        if ($p < $pLow) { $q = sqrt(-2*log($p)); return (((((($c[0]*$q+$c[1])*$q+$c[2])*$q+$c[3])*$q+$c[4])*$q+$c[5])/((((($d[0]*$q+$d[1])*$q+$d[2])*$q+$d[3])*$q+1))); }
-        elseif ($p <= $pHigh) { $q = $p-0.5; $r = $q*$q; return (((((($a[0]*$r+$a[1])*$r+$a[2])*$r+$a[3])*$r+$a[4])*$r+$a[5])*$q/(((((($b[0]*$r+$b[1])*$r+$b[2])*$r+$b[3])*$r+$b[4])*$r+1))); }
-        else { $q = sqrt(-2*log(1-$p)); return -(((((($c[0]*$q+$c[1])*$q+$c[2])*$q+$c[3])*$q+$c[4])*$q+$c[5])/((((($d[0]*$q+$d[1])*$q+$d[2])*$q+$d[3])*$q+1))); }
+        if ($p < $pLow) {
+            $q = sqrt(-2*log($p));
+            return (((((($c[0]*$q+$c[1])*$q+$c[2])*$q+$c[3])*$q+$c[4])*$q+$c[5]) / ((((($d[0]*$q+$d[1])*$q+$d[2])*$q+$d[3])*$q+1)));
+        } elseif ($p <= $pHigh) {
+            $q = $p-0.5; $r = $q*$q;
+            return (((((($a[0]*$r+$a[1])*$r+$a[2])*$r+$a[3])*$r+$a[4])*$r+$a[5])*$q / (((((($b[0]*$r+$b[1])*$r+$b[2])*$r+$b[3])*$r+$b[4])*$r+1)));
+        } else {
+            $q = sqrt(-2*log(1-$p));
+            return -(((((($c[0]*$q+$c[1])*$q+$c[2])*$q+$c[3])*$q+$c[4])*$q+$c[5]) / ((((($d[0]*$q+$d[1])*$q+$d[2])*$q+$d[3])*$q+1)));
+        }
     }
 
     private function normalCDF(float $z): float
     {
-        $t = 1/(1+0.2316419*abs($z)); $d = 0.3989422820*exp(-$z*$z/2);
+        $t = 1/(1+0.2316419*abs($z));
+        $d = 0.3989422820*exp(-$z*$z/2);
         $p = $d*$t*(0.3193815+$t*(-0.3565638+$t*(1.7814779+$t*(-1.8212560+$t*1.3302744))));
         return $z > 0 ? 1-$p : $p;
     }
@@ -886,7 +1037,8 @@ class AnalysisController extends Controller
         $binCount = max(5, (int) ceil(1+log($n, 2)));
         $range = $max - $min;
         if ($range == 0) return ['labels' => [(string) $min], 'values' => [$n]];
-        $binWidth = $range/$binCount; $bins = array_fill(0, $binCount, 0); $labels = [];
+        $binWidth = $range/$binCount;
+        $bins = array_fill(0, $binCount, 0); $labels = [];
         for ($i = 0; $i < $binCount; $i++) {
             $lower = $min+($i*$binWidth); $upper = $lower+$binWidth;
             $labels[] = round($lower, 2).' - '.round($upper, 2);

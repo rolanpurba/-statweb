@@ -1,95 +1,92 @@
 <x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            Riwayat Analisis — {{ $dataset->name }}
-        </h2>
-    </x-slot>
+    <x-slot name="header">Riwayat Analisis</x-slot>
 
-    <div class="py-12">
-        <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
+    <div class="mb-4 flex justify-between items-center">
+        <a href="{{ route('datasets.show', $dataset->id) }}" class="text-sm text-slate-500 hover:text-slate-700 font-medium">
+            &larr; Kembali ke Dataset
+        </a>
+        <a href="{{ route('analysis.create', $dataset->id) }}"
+           class="bg-cyan-700 text-white px-3 py-1.5 text-xs font-medium rounded-lg hover:bg-cyan-800 transition">
+            + Analisis Baru
+        </a>
+    </div>
 
-            <div class="mb-4 flex justify-between items-center">
-                <a href="{{ route('datasets.show', $dataset->id) }}" class="text-indigo-600 hover:underline">
-                    &larr; Kembali ke Dataset
-                </a>
-                <a href="{{ route('analysis.create', $dataset->id) }}"
-                   class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm">
-                    + Analisis Baru
-                </a>
+    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+            <div>
+                <h3 class="text-sm font-semibold text-slate-700 sw-display">Output Viewer</h3>
+                <p class="text-xs text-slate-400 mt-0.5">{{ $dataset->name }}</p>
             </div>
+            <a href="{{ route('export.history_pdf', $dataset->id) }}"
+               class="bg-slate-100 text-slate-700 px-3 py-1.5 text-xs font-medium rounded-lg hover:bg-slate-200 transition">
+                Export Semua PDF
+            </a>
+        </div>
 
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="px-6 py-4 border-b border-gray-100">
-                    <h3 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-                        Output Viewer
-                    </h3>
-                    <p class="text-xs text-gray-400 mt-0.5">
-                        Semua hasil analisis yang pernah dijalankan pada dataset ini
-                    </p>
+        @if ($histories->isEmpty())
+            <div class="px-6 py-12 text-center text-slate-400 text-sm">
+                Belum ada analisis yang dijalankan.
+                <div class="mt-2">
+                    <a href="{{ route('analysis.create', $dataset->id) }}"
+                       class="text-cyan-700 hover:underline font-medium">
+                        Jalankan analisis pertama →
+                    </a>
                 </div>
-
-                @if ($histories->isEmpty())
-                    <div class="px-6 py-12 text-center text-gray-400 text-sm">
-                        Belum ada analisis yang dijalankan pada dataset ini.
-                        <div class="mt-2">
-                            <a href="{{ route('analysis.create', $dataset->id) }}"
-                               class="text-indigo-600 hover:underline">
-                                Jalankan analisis pertama →
+            </div>
+        @else
+            {{-- Desktop --}}
+            <div class="hidden sm:block divide-y divide-slate-100">
+                @foreach ($histories as $history)
+                    <div class="flex items-center justify-between px-6 py-3.5 hover:bg-slate-50/60 transition">
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-slate-800 truncate">{{ $history->analysis_label }}</p>
+                            <p class="text-xs text-slate-400 sw-mono mt-0.5">
+                                {{ $history->created_at->format('d M Y, H:i') }} ·
+                                {{ $history->created_at->diffForHumans() }}
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-3 flex-shrink-0 ml-4">
+                            <span class="px-2 py-0.5 text-xs rounded-full
+                                @if (str_contains($history->analysis_type, 'regression')) bg-emerald-100 text-emerald-700
+                                @elseif (str_contains($history->analysis_type, 'ttest')) bg-orange-100 text-orange-700
+                                @elseif ($history->analysis_type === 'anova') bg-cyan-100 text-cyan-700
+                                @elseif ($history->analysis_type === 'correlation') bg-blue-100 text-blue-700
+                                @elseif ($history->analysis_type === 'normality') bg-yellow-100 text-yellow-700
+                                @elseif ($history->analysis_type === 'chi_square') bg-pink-100 text-pink-700
+                                @elseif ($history->analysis_type === 'descriptive') bg-indigo-100 text-indigo-700
+                                @else bg-slate-100 text-slate-600
+                                @endif">
+                                {{ str_replace('_', ' ', ucfirst($history->analysis_type)) }}
+                            </span>
+                            <a href="{{ route('analysis.history_show', [$dataset->id, $history->id]) }}"
+                               class="text-xs text-cyan-700 hover:text-cyan-800 font-medium">
+                                Lihat →
                             </a>
                         </div>
                     </div>
-                @else
-                    <table class="min-w-full divide-y divide-gray-100">
-                        <thead>
-                        <tr class="bg-gray-50">
-                            <th class="px-6 py-2 text-left text-xs font-medium text-gray-400 uppercase">Analisis</th>
-                            <th class="px-6 py-2 text-left text-xs font-medium text-gray-400 uppercase">Tipe</th>
-                            <th class="px-6 py-2 text-left text-xs font-medium text-gray-400 uppercase">Dijalankan</th>
-                            <th class="px-6 py-2"></th>
-                        </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100">
-                        @foreach ($histories as $history)
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-6 py-3">
-                                    <p class="text-sm font-medium text-gray-800">{{ $history->analysis_label }}</p>
-                                </td>
-                                <td class="px-6 py-3">
-                                        <span class="px-2 py-0.5 text-xs rounded-full
-                                            @if (str_contains($history->analysis_type, 'regression')) bg-emerald-100 text-emerald-700
-                                            @elseif (str_contains($history->analysis_type, 'ttest')) bg-orange-100 text-orange-700
-                                            @elseif ($history->analysis_type === 'anova') bg-cyan-100 text-cyan-700
-                                            @elseif ($history->analysis_type === 'correlation') bg-blue-100 text-blue-700
-                                            @elseif ($history->analysis_type === 'normality') bg-yellow-100 text-yellow-700
-                                            @elseif ($history->analysis_type === 'chi_square') bg-pink-100 text-pink-700
-                                            @elseif ($history->analysis_type === 'descriptive') bg-indigo-100 text-indigo-700
-                                            @else bg-gray-100 text-gray-600
-                                            @endif
-                                        ">
-                                            {{ str_replace('_', ' ', ucfirst($history->analysis_type)) }}
-                                        </span>
-                                </td>
-                                <td class="px-6 py-3 text-xs text-gray-400">
-                                    {{ $history->created_at->format('d M Y, H:i') }}
-                                    <span class="text-gray-300 ml-1">({{ $history->created_at->diffForHumans() }})</span>
-                                </td>
-                                <td class="px-6 py-3 text-right">
-                                    <a href="{{ route('analysis.history_show', [$dataset->id, $history->id]) }}"
-                                       class="text-xs text-indigo-600 hover:underline">
-                                        Lihat →
-                                    </a>
-                                </td>
-                            </tr>
-                        @endforeach
-                        </tbody>
-                    </table>
-
-                    <div class="px-6 py-4">
-                        {{ $histories->links() }}
-                    </div>
-                @endif
+                @endforeach
             </div>
 
-        </div>
+            {{-- Mobile --}}
+            <div class="sm:hidden divide-y divide-slate-100">
+                @foreach ($histories as $history)
+                    <div class="px-4 py-3.5">
+                        <p class="text-sm font-medium text-slate-800">{{ $history->analysis_label }}</p>
+                        <p class="text-xs text-slate-400 sw-mono mt-0.5 mb-2">{{ $history->created_at->format('d M Y, H:i') }}</p>
+                        <div class="flex gap-3 items-center">
+                            <span class="px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-600">
+                                {{ str_replace('_', ' ', ucfirst($history->analysis_type)) }}
+                            </span>
+                            <a href="{{ route('analysis.history_show', [$dataset->id, $history->id]) }}"
+                               class="text-xs text-cyan-700 font-medium">Lihat →</a>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+
+            <div class="px-6 py-4 border-t border-slate-100">
+                {{ $histories->links() }}
+            </div>
+        @endif
     </div>
 </x-app-layout>

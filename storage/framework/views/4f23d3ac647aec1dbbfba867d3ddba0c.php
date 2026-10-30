@@ -8,160 +8,136 @@
 <?php $attributes = $attributes->except(\App\View\Components\AppLayout::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes([]); ?>
-     <?php $__env->slot('header', null, []); ?> 
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            Dashboard
-        </h2>
-     <?php $__env->endSlot(); ?>
+     <?php $__env->slot('header', null, []); ?> Dashboard <?php $__env->endSlot(); ?>
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+    
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div class="bg-white rounded-xl border border-slate-200 p-5 transition hover:border-[#F6C90E]/50 hover:shadow-sm">
+            <p class="text-xs text-slate-400 uppercase tracking-wide mb-2">Dataset Tersimpan</p>
+            <p class="sw-mono text-3xl font-semibold text-slate-800 counter" data-target="<?php echo e($totalDatasets); ?>">0</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-5 transition hover:border-[#F6C90E]/50 hover:shadow-sm">
+            <p class="text-xs text-slate-400 uppercase tracking-wide mb-2">Total Baris Data</p>
+            <p class="sw-mono text-3xl font-semibold text-slate-800 counter" data-target="<?php echo e($totalRows); ?>">0</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-5 transition hover:border-[#F6C90E]/50 hover:shadow-sm">
+            <p class="text-xs text-slate-400 uppercase tracking-wide mb-2">Upload Terakhir</p>
+            <p class="text-sm font-medium text-slate-700 mt-2.5">
+                <?php echo e($latestDataset ? $latestDataset->created_at->diffForHumans() : '—'); ?>
 
-            <p class="text-gray-500 text-sm mb-6">
-                Selamat datang, <span class="font-medium text-gray-700"><?php echo e(Auth::user()->name); ?></span>
             </p>
+            <?php if($latestDataset): ?>
+                <p class="text-xs text-slate-400 mt-0.5 truncate"><?php echo e($latestDataset->name); ?></p>
+            <?php endif; ?>
+        </div>
+    </div>
 
-            
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-5 border-l-4 border-indigo-500">
-                    <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Dataset Tersimpan</p>
-                    <p class="text-3xl font-semibold text-gray-800"><?php echo e($totalDatasets); ?></p>
-                </div>
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-5 border-l-4 border-green-500">
-                    <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Total Baris Data</p>
-                    <p class="text-3xl font-semibold text-gray-800"><?php echo e(number_format($totalRows)); ?></p>
-                </div>
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-5 border-l-4 border-gray-300">
-                    <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Upload Terakhir</p>
-                    <p class="text-sm font-medium text-gray-700 mt-2">
-                        <?php echo e($latestDataset ? $latestDataset->created_at->diffForHumans() : '—'); ?>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-                    </p>
+        
+        <div class="lg:col-span-2 bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-100 flex justify-between items-center">
+                <h3 class="text-sm font-semibold text-slate-700 sw-display">Dataset Terbaru</h3>
+                <a href="<?php echo e(route('datasets.index')); ?>" class="text-xs font-medium hover:underline" style="color: #0F2C59;">
+                    Lihat semua
+                </a>
+            </div>
+
+            <?php if($recentDatasets->isEmpty()): ?>
+                <div class="px-5 py-12 text-center text-slate-400 text-sm">
+                    Belum ada dataset. Upload file CSV atau Excel untuk memulai.
+                    <div class="mt-3">
+                        <a href="<?php echo e(route('datasets.index')); ?>"
+                           class="inline-block text-white px-4 py-2 rounded-lg text-sm font-medium transition" style="background: #0F2C59;">
+                            Upload dataset
+                        </a>
+                    </div>
+                </div>
+            <?php else: ?>
+                <div class="divide-y divide-slate-100">
+                    <?php $__currentLoopData = $recentDatasets; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $dataset): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <div class="flex items-center justify-between px-5 py-3.5 transition hover:bg-slate-50 group">
+                            <div class="min-w-0">
+                                <p class="text-sm font-medium text-slate-800 truncate group-hover:text-[#0F2C59] transition"><?php echo e($dataset->name); ?></p>
+                                <p class="text-xs text-slate-400 sw-mono mt-0.5">
+                                    <?php echo e($dataset->columns->count()); ?> kolom · <?php echo e($dataset->rows()->count()); ?> baris · <?php echo e($dataset->created_at->format('d M Y')); ?>
+
+                                </p>
+                            </div>
+                            <div class="flex gap-3 flex-shrink-0 ml-4">
+                                <a href="<?php echo e(route('datasets.show', $dataset->id)); ?>" class="text-xs text-slate-500 hover:text-slate-700 font-medium">Data</a>
+                                <a href="<?php echo e(route('analysis.create', $dataset->id)); ?>" class="text-xs font-medium" style="color: #0F2C59;">Analisis</a>
+                            </div>
+                        </div>
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                </div>
+            <?php endif; ?>
+        </div>
+
+        
+        <div class="space-y-4">
+
+            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <div class="px-5 py-4 border-b border-slate-100">
+                    <h3 class="text-sm font-semibold text-slate-700 sw-display">Aksi Cepat</h3>
+                </div>
+                <div class="divide-y divide-slate-100">
+                    <a href="<?php echo e(route('datasets.index')); ?>" class="flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition group">
+                        <span class="text-sm text-slate-700">Upload Dataset Baru</span>
+                        <span class="text-sm transition group-hover:translate-x-0.5 inline-block" style="color: #F6C90E;">→</span>
+                    </a>
                     <?php if($latestDataset): ?>
-                        <p class="text-xs text-gray-400 mt-0.5"><?php echo e($latestDataset->name); ?></p>
+                        <a href="<?php echo e(route('analysis.create', $latestDataset->id)); ?>" class="flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition group">
+                            <span class="text-sm text-slate-700">Analisis Dataset Terakhir</span>
+                            <span class="text-sm transition group-hover:translate-x-0.5 inline-block" style="color: #F6C90E;">→</span>
+                        </a>
                     <?php endif; ?>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-                
-                <div class="lg:col-span-2 bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                    <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-                        <h3 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">Dataset Terbaru</h3>
-                        <a href="<?php echo e(route('datasets.index')); ?>" class="text-xs text-indigo-600 hover:underline">
-                            Lihat semua
-                        </a>
-                    </div>
-
-                    <?php if($recentDatasets->isEmpty()): ?>
-                        <div class="px-6 py-10 text-center text-gray-400 text-sm">
-                            Belum ada dataset. Upload file CSV atau Excel untuk memulai.
-                        </div>
-                    <?php else: ?>
-                        <table class="min-w-full divide-y divide-gray-100">
-                            <thead>
-                            <tr class="bg-gray-50">
-                                <th class="px-6 py-2 text-left text-xs font-medium text-gray-400 uppercase">Nama</th>
-                                <th class="px-6 py-2 text-left text-xs font-medium text-gray-400 uppercase">Kolom</th>
-                                <th class="px-6 py-2 text-left text-xs font-medium text-gray-400 uppercase">Baris</th>
-                                <th class="px-6 py-2 text-left text-xs font-medium text-gray-400 uppercase">Diupload</th>
-                                <th class="px-6 py-2"></th>
-                            </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100">
-                            <?php $__currentLoopData = $recentDatasets; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $dataset): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                <tr class="hover:bg-gray-50">
-                                    <td class="px-6 py-3 text-sm font-medium text-gray-800">
-                                        <?php echo e($dataset->name); ?>
-
-                                    </td>
-                                    <td class="px-6 py-3 text-sm text-gray-500">
-                                        <?php echo e($dataset->columns->count()); ?>
-
-                                    </td>
-                                    <td class="px-6 py-3 text-sm text-gray-500">
-                                        <?php echo e($dataset->rows()->count()); ?>
-
-                                    </td>
-                                    <td class="px-6 py-3 text-xs text-gray-400">
-                                        <?php echo e($dataset->created_at->format('d M Y')); ?>
-
-                                    </td>
-                                    <td class="px-6 py-3 text-right">
-                                        <a href="<?php echo e(route('datasets.show', $dataset->id)); ?>"
-                                           class="text-xs text-indigo-600 hover:underline mr-3">Data</a>
-                                        <a href="<?php echo e(route('analysis.create', $dataset->id)); ?>"
-                                           class="text-xs text-green-600 hover:underline">Analisis</a>
-                                    </td>
-                                </tr>
-                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-                            </tbody>
-                        </table>
-                    <?php endif; ?>
+            <div class="rounded-xl overflow-hidden" style="background: #0F2C59;">
+                <div class="px-5 py-4 border-b border-white/10">
+                    <h3 class="text-sm font-semibold text-white sw-display">Fitur Analisis</h3>
                 </div>
+                <div class="px-5 py-4 space-y-2">
+                    <?php $__currentLoopData = [
+                        'Statistik Deskriptif',
+                        'Distribusi Frekuensi',
+                        'Uji Normalitas',
+                        'Uji-t (3 jenis)',
+                        'One-Way ANOVA',
+                        'Korelasi Pearson & Spearman',
+                        'Chi-square Test',
+                        'Regresi Linear',
+                    ]; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $fitur): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <div class="flex items-center gap-2 text-xs text-slate-300 hover:text-white transition">
+                            <span class="w-1 h-1 rounded-full flex-shrink-0" style="background: #F6C90E;"></span>
+                            <?php echo e($fitur); ?>
 
-                
-                <div class="space-y-4">
-
-                    
-                    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                        <div class="px-6 py-4 border-b border-gray-100">
-                            <h3 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">Aksi Cepat</h3>
                         </div>
-                        <div class="divide-y divide-gray-100">
-                            <a href="<?php echo e(route('datasets.index')); ?>"
-                               class="flex items-center justify-between px-6 py-3 hover:bg-gray-50 transition">
-                                <span class="text-sm text-gray-700">Upload Dataset Baru</span>
-                                <span class="text-gray-300 text-sm">→</span>
-                            </a>
-                            <?php if($latestDataset): ?>
-                                <a href="<?php echo e(route('analysis.create', $latestDataset->id)); ?>"
-                                   class="flex items-center justify-between px-6 py-3 hover:bg-gray-50 transition">
-                                    <span class="text-sm text-gray-700">Analisis Dataset Terakhir</span>
-                                    <span class="text-gray-300 text-sm">→</span>
-                                </a>
-                            <?php endif; ?>
-                            <a href="<?php echo e(route('datasets.index')); ?>"
-                               class="flex items-center justify-between px-6 py-3 hover:bg-gray-50 transition">
-                                <span class="text-sm text-gray-700">Kelola Dataset</span>
-                                <span class="text-gray-300 text-sm">→</span>
-                            </a>
-                        </div>
-                    </div>
-
-                    
-                    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                        <div class="px-6 py-4 border-b border-gray-100">
-                            <h3 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">Fitur Analisis</h3>
-                        </div>
-                        <div class="px-6 py-4">
-                            <div class="space-y-1.5">
-                                <?php $__currentLoopData = [
-                                    'Statistik Deskriptif',
-                                    'Distribusi Frekuensi',
-                                    'Uji Normalitas (Shapiro-Wilk / KS)',
-                                    'Uji-t (Satu Sampel, Independen, Berpasangan)',
-                                    'One-Way ANOVA',
-                                    'Korelasi Pearson & Spearman',
-                                    'Chi-square Test',
-                                    'Regresi Linear Sederhana & Berganda',
-                                ]; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $fitur): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                    <div class="flex items-center gap-2 text-xs text-gray-500">
-                                        <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 flex-shrink-0"></span>
-                                        <?php echo e($fitur); ?>
-
-                                    </div>
-                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-                            </div>
-                        </div>
-                    </div>
-
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                 </div>
             </div>
 
         </div>
     </div>
+
+    <script>
+        document.querySelectorAll('.counter').forEach(el => {
+            const target = parseInt(el.dataset.target, 10);
+            if (isNaN(target) || target === 0) { el.textContent = '0'; return; }
+            const duration = 700;
+            const start = performance.now();
+            function tick(now) {
+                const progress = Math.min((now - start) / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                el.textContent = Math.floor(eased * target).toLocaleString('id-ID');
+                if (progress < 1) requestAnimationFrame(tick);
+                else el.textContent = target.toLocaleString('id-ID');
+            }
+            requestAnimationFrame(tick);
+        });
+    </script>
  <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal9ac128a9029c0e4701924bd2d73d7f54)): ?>
@@ -172,4 +148,5 @@
 <?php $component = $__componentOriginal9ac128a9029c0e4701924bd2d73d7f54; ?>
 <?php unset($__componentOriginal9ac128a9029c0e4701924bd2d73d7f54); ?>
 <?php endif; ?>
+
 <?php /**PATH C:\Users\LOQ\Herd\statweb\resources\views/dashboard.blade.php ENDPATH**/ ?>

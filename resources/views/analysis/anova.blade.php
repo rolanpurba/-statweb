@@ -1,119 +1,85 @@
 <x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            One-Way ANOVA — {{ $dataset->name }}
-        </h2>
-    </x-slot>
+    <x-slot name="header">One-Way ANOVA</x-slot>
 
-    <div class="py-12">
-        <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
+    <div class="mb-4 flex justify-between items-center">
+        <a href="{{ route('analysis.create', $dataset->id) }}" class="text-sm text-slate-500 hover:text-slate-700 font-medium">
+            &larr; Pilih Analisis Lain
+        </a>
+        <a href="{{ route('datasets.show', $dataset->id) }}" class="text-xs text-slate-400 hover:text-slate-600">
+            Kembali ke Dataset
+        </a>
+    </div>
 
-            <div class="mb-4 flex justify-between items-center">
-                <a href="{{ route('analysis.create', $dataset->id) }}" class="text-indigo-600 hover:underline">
-                    &larr; Pilih Analisis Lain
-                </a>
-                <a href="{{ route('datasets.show', $dataset->id) }}" class="text-gray-500 hover:underline text-sm">
-                    Kembali ke Dataset
-                </a>
-            </div>
+    <div class="bg-white rounded-xl border border-slate-200 p-6 mb-4">
+        <h3 class="text-sm font-semibold text-slate-800 sw-display mb-1">{{ $columnValue }} berdasarkan {{ $columnGroup }}</h3>
+        <p class="text-xs text-slate-400 sw-mono mb-5">{{ $result['k'] }} kelompok · N total = {{ $result['N'] }} · Grand mean = {{ $result['grand_mean'] }}</p>
 
-            {{-- Statistik Per Kelompok --}}
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6 mb-6">
-                <h3 class="text-lg font-medium mb-4">{{ $columnValue }} berdasarkan {{ $columnGroup }}</h3>
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead>
-                    <tr>
-                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Kelompok</th>
-                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">N</th>
-                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Mean</th>
-                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Std Dev</th>
+        <h4 class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Statistik Per Kelompok</h4>
+        <div class="overflow-x-auto mb-5">
+            <table class="min-w-full divide-y divide-slate-100 text-sm">
+                <thead>
+                <tr class="bg-slate-50">
+                    <th class="px-4 py-2 text-left text-xs font-medium text-slate-400 uppercase">Kelompok</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-slate-400 uppercase">N</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-slate-400 uppercase">Mean</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-slate-400 uppercase">Std Dev</th>
+                </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                @foreach ($groupStats as $name => $stat)
+                    <tr class="hover:bg-slate-50/60">
+                        <td class="px-4 py-2 font-medium text-slate-700">{{ $name }}</td>
+                        <td class="px-4 py-2 sw-mono text-slate-600">{{ $stat['n'] }}</td>
+                        <td class="px-4 py-2 sw-mono text-slate-600">{{ $stat['mean'] }}</td>
+                        <td class="px-4 py-2 sw-mono text-slate-600">{{ $stat['std'] }}</td>
                     </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200">
-                    @foreach ($groupStats as $name => $stat)
-                        <tr>
-                            <td class="px-4 py-2 font-medium">{{ $name }}</td>
-                            <td class="px-4 py-2">{{ $stat['n'] }}</td>
-                            <td class="px-4 py-2">{{ $stat['mean'] }}</td>
-                            <td class="px-4 py-2">{{ $stat['std'] }}</td>
-                        </tr>
-                    @endforeach
-                    <tr class="bg-gray-50">
-                        <td class="px-4 py-2 font-medium">Total</td>
-                        <td class="px-4 py-2">{{ $result['N'] }}</td>
-                        <td class="px-4 py-2">{{ $result['grand_mean'] }}</td>
-                        <td class="px-4 py-2">—</td>
-                    </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            {{-- Tabel ANOVA --}}
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6 mb-6">
-                <h3 class="text-lg font-medium mb-4">Tabel ANOVA</h3>
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead>
-                    <tr>
-                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Sumber Variasi</th>
-                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">SS</th>
-                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">df</th>
-                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">MS</th>
-                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">F</th>
-                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">p-value</th>
-                    </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200">
-                    <tr>
-                        <td class="px-4 py-2 font-medium">Antar Kelompok (Between)</td>
-                        <td class="px-4 py-2">{{ $result['ssb'] }}</td>
-                        <td class="px-4 py-2">{{ $result['dfb'] }}</td>
-                        <td class="px-4 py-2">{{ $result['msb'] }}</td>
-                        <td class="px-4 py-2 font-medium">{{ $result['f'] }}</td>
-                        <td class="px-4 py-2 font-medium">{{ $result['p_value'] }}</td>
-                    </tr>
-                    <tr>
-                        <td class="px-4 py-2 font-medium">Dalam Kelompok (Within)</td>
-                        <td class="px-4 py-2">{{ $result['ssw'] }}</td>
-                        <td class="px-4 py-2">{{ $result['dfw'] }}</td>
-                        <td class="px-4 py-2">{{ $result['msw'] }}</td>
-                        <td class="px-4 py-2">—</td>
-                        <td class="px-4 py-2">—</td>
-                    </tr>
-                    </tbody>
-                </table>
-
-                <div class="mt-4">
-                    @if ($result['significant'])
-                        <span class="px-3 py-1 text-sm bg-red-100 text-red-700 rounded font-medium">
-                            ✗ {{ $result['conclusion'] }}
-                        </span>
-                    @else
-                        <span class="px-3 py-1 text-sm bg-green-100 text-green-700 rounded font-medium">
-                            ✓ {{ $result['conclusion'] }}
-                        </span>
-                    @endif
-                </div>
-            </div>
-
-            {{-- Interpretasi --}}
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                <div class="p-4 bg-blue-50 text-blue-700 rounded text-sm">
-                    <strong>Cara membaca hasil:</strong>
-                    <ul class="list-disc list-inside mt-1 space-y-1">
-                        <li><strong>H₀:</strong> Semua rata-rata kelompok sama (μ₁ = μ₂ = ... = μk)</li>
-                        <li><strong>H₁:</strong> Minimal ada satu rata-rata kelompok yang berbeda</li>
-                        <li>Jika p-value &lt; 0.05 → tolak H₀ (ada perbedaan signifikan antar kelompok)</li>
-                        <li>Jika p-value ≥ 0.05 → gagal tolak H₀ (tidak ada perbedaan signifikan)</li>
-                        <li>F hitung: <strong>{{ $result['f'] }}</strong> | p-value: <strong>{{ $result['p_value'] }}</strong>
-                            → @if($result['significant']) <span class="text-red-600">Tolak H₀</span>
-                            @else <span class="text-green-600">Gagal tolak H₀</span>
-                            @endif
-                        </li>
-                        <li class="text-xs text-blue-500 mt-1">Jika H₀ ditolak, lakukan Post-hoc test (misal Tukey HSD) untuk mengetahui kelompok mana yang berbeda secara spesifik.</li>
-                    </ul>
-                </div>
-            </div>
-
+                @endforeach
+                </tbody>
+            </table>
         </div>
+
+        <h4 class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Tabel ANOVA</h4>
+        <div class="overflow-x-auto mb-5">
+            <table class="min-w-full divide-y divide-slate-100 text-sm">
+                <thead>
+                <tr class="bg-slate-50">
+                    <th class="px-4 py-2 text-left text-xs font-medium text-slate-400 uppercase">Sumber</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-slate-400 uppercase">SS</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-slate-400 uppercase">df</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-slate-400 uppercase">MS</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-slate-400 uppercase">F</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-slate-400 uppercase">p-value</th>
+                </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                <tr class="hover:bg-slate-50/60">
+                    <td class="px-4 py-2 font-medium text-slate-700">Antar Kelompok</td>
+                    <td class="px-4 py-2 sw-mono text-slate-600">{{ $result['ssb'] }}</td>
+                    <td class="px-4 py-2 sw-mono text-slate-600">{{ $result['dfb'] }}</td>
+                    <td class="px-4 py-2 sw-mono text-slate-600">{{ $result['msb'] }}</td>
+                    <td class="px-4 py-2 sw-mono font-semibold text-slate-700">{{ $result['f'] }}</td>
+                    <td class="px-4 py-2 sw-mono font-semibold text-slate-700">{{ $result['p_value'] }}</td>
+                </tr>
+                <tr class="hover:bg-slate-50/60">
+                    <td class="px-4 py-2 font-medium text-slate-700">Dalam Kelompok</td>
+                    <td class="px-4 py-2 sw-mono text-slate-600">{{ $result['ssw'] }}</td>
+                    <td class="px-4 py-2 sw-mono text-slate-600">{{ $result['dfw'] }}</td>
+                    <td class="px-4 py-2 sw-mono text-slate-600">{{ $result['msw'] }}</td>
+                    <td class="px-4 py-2 text-slate-300">—</td>
+                    <td class="px-4 py-2 text-slate-300">—</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="flex items-center gap-3 mb-4">
+            @if ($result['significant'])
+                <span class="px-3 py-1.5 text-xs bg-red-50 text-red-700 rounded-lg font-medium">✗ Tolak H₀</span>
+            @else
+                <span class="px-3 py-1.5 text-xs bg-emerald-50 text-emerald-700 rounded-lg font-medium">✓ Gagal Tolak H₀</span>
+            @endif
+        </div>
+
+        <div class="p-4 bg-cyan-50/60 text-cyan-900 rounded-lg text-sm">{{ $result['conclusion'] }}</div>
     </div>
 </x-app-layout>

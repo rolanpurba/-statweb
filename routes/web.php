@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DatasetController;
 use App\Http\Controllers\AnalysisController;
+use App\Http\Controllers\ExportController;
 use Illuminate\Support\Facades\Auth;
 
 Route::get('/', function () {
@@ -41,6 +42,10 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/datasets/{dataset}/analysis/regression-multiple', [AnalysisController::class, 'regressionMultiple'])->name('analysis.regression_multiple');
     Route::get('/datasets/{dataset}/history', [AnalysisController::class, 'history'])->name('analysis.history');
     Route::get('/datasets/{dataset}/history/{analysisResult}', [AnalysisController::class, 'historyShow'])->name('analysis.history_show');
+    // Export routes
+    Route::get('/datasets/{dataset}/export/csv', [ExportController::class, 'exportDatasetCsv'])->name('export.dataset_csv');
+    Route::get('/datasets/{dataset}/export/history-pdf', [ExportController::class, 'exportHistoryPdf'])->name('export.history_pdf');
+    Route::post('/datasets/{dataset}/history/{analysisResult}/export/pdf', [ExportController::class, 'exportAnalysisPdf'])->name('export.analysis_pdf');
 });
 
 Route::get('/dashboard', function () {

@@ -8,99 +8,106 @@
 <?php $attributes = $attributes->except(\App\View\Components\AppLayout::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes([]); ?>
-     <?php $__env->slot('header', null, []); ?> 
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            <?php echo e(__('Dataset Saya')); ?>
+     <?php $__env->slot('header', null, []); ?> Dataset <?php $__env->endSlot(); ?>
 
-        </h2>
-     <?php $__env->endSlot(); ?>
+    <div class="bg-white rounded-xl border border-slate-200 p-6 mb-6">
+        <h3 class="text-sm font-semibold text-slate-700 sw-display mb-4">Upload Dataset Baru</h3>
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+        <?php if(session('success')): ?>
+            <div class="mb-4 px-4 py-3 bg-emerald-50 text-emerald-700 rounded-lg text-sm">
+                <?php echo e(session('success')); ?>
 
-            <?php if(session('success')): ?>
-                <div class="mb-4 p-4 bg-green-100 text-green-700 rounded">
-                    <?php echo e(session('success')); ?>
+            </div>
+        <?php endif; ?>
 
+        <?php if($errors->any()): ?>
+            <div class="mb-4 px-4 py-3 bg-red-50 text-red-700 rounded-lg text-sm">
+                <ul class="list-disc list-inside">
+                    <?php $__currentLoopData = $errors->all(); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $error): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <li><?php echo e($error); ?></li>
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                </ul>
+            </div>
+        <?php endif; ?>
+
+        <form action="<?php echo e(route('datasets.store')); ?>" method="POST" enctype="multipart/form-data">
+            <?php echo csrf_field(); ?>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">Nama Dataset</label>
+                    <input type="text" name="name" required
+                           placeholder="Contoh: Data Nilai Ujian Siswa"
+                           class="w-full border-slate-300 rounded-lg text-sm focus:border-[#F6C90E] focus:ring-[#F6C90E]">
                 </div>
-            <?php endif; ?>
-
-            
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6 mb-6">
-                <h3 class="text-lg font-medium mb-4">Upload Dataset Baru</h3>
-
-                <?php if($errors->any()): ?>
-                    <div class="mb-4 p-4 bg-red-100 text-red-700 rounded">
-                        <ul class="list-disc list-inside">
-                            <?php $__currentLoopData = $errors->all(); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $error): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                <li><?php echo e($error); ?></li>
-                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-                        </ul>
-                    </div>
-                <?php endif; ?>
-
-                <form action="<?php echo e(route('datasets.store')); ?>" method="POST" enctype="multipart/form-data">
-                    <?php echo csrf_field(); ?>
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Nama Dataset</label>
-                        <input type="text" name="name" required
-                               class="w-full border-gray-300 rounded shadow-sm"
-                               placeholder="Contoh: Data Nilai Ujian Siswa">
-                    </div>
-
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">File (CSV / Excel)</label>
-                        <input type="file" name="file" required accept=".csv,.xlsx,.xls"
-                               class="w-full border-gray-300 rounded shadow-sm">
-                        <p class="text-xs text-gray-500 mt-1">Format: CSV, XLSX, XLS. Maksimal 10MB.</p>
-                    </div>
-
-                    <button type="submit"
-                            class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">
-                        Upload
-                    </button>
-                </form>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">File (CSV / Excel)</label>
+                    <input type="file" name="file" required accept=".csv,.xlsx,.xls"
+                           class="w-full text-sm text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 file:cursor-pointer">
+                    <p class="text-xs text-slate-400 mt-1">Format: CSV, XLSX, XLS. Maksimal 50MB.</p>
+                </div>
             </div>
+            <button type="submit"
+                    class="text-white px-5 py-2 rounded-lg text-sm font-medium transition" style="background: #0F2C59;">
+                Upload
+            </button>
+        </form>
+    </div>
 
-            
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                <h3 class="text-lg font-medium mb-4">Dataset Tersimpan</h3>
-
-                <?php if($datasets->isEmpty()): ?>
-                    <p class="text-gray-500">Belum ada dataset yang diupload.</p>
-                <?php else: ?>
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead>
-                        <tr>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nama</th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Diupload</th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Aksi</th>
-                        </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200">
-                        <?php $__currentLoopData = $datasets; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $dataset): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                            <tr>
-                                <td class="px-4 py-2"><?php echo e($dataset->name); ?></td>
-                                <td class="px-4 py-2"><?php echo e($dataset->created_at->format('d M Y, H:i')); ?></td>
-                                <td class="px-4 py-2 space-x-2">
-                                    <a href="<?php echo e(route('datasets.show', $dataset->id)); ?>"
-                                       class="text-indigo-600 hover:underline">Lihat</a>
-                                    <form action="<?php echo e(route('datasets.destroy', $dataset->id)); ?>"
-                                          method="POST" class="inline"
-                                          onsubmit="return confirm('Yakin ingin menghapus dataset ini?')">
-                                        <?php echo csrf_field(); ?>
-                                        <?php echo method_field('DELETE'); ?>
-                                        <button type="submit" class="text-red-600 hover:underline">Hapus</button>
-                                    </form>
-                                </td>
-                            </tr>
-                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-                        </tbody>
-                    </table>
-                <?php endif; ?>
-            </div>
-
+    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100">
+            <h3 class="text-sm font-semibold text-slate-700 sw-display">Dataset Tersimpan</h3>
         </div>
+
+        <?php if($datasets->isEmpty()): ?>
+            <div class="px-6 py-12 text-center text-slate-400 text-sm">
+                Belum ada dataset yang diupload.
+            </div>
+        <?php else: ?>
+            <div class="hidden sm:block overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-100">
+                    <thead>
+                    <tr class="bg-slate-50">
+                        <th class="px-6 py-2 text-left text-xs font-medium text-slate-400 uppercase">Nama</th>
+                        <th class="px-6 py-2 text-left text-xs font-medium text-slate-400 uppercase">Diupload</th>
+                        <th class="px-6 py-2"></th>
+                    </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                    <?php $__currentLoopData = $datasets; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $dataset): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="px-6 py-3.5 text-sm font-medium text-slate-800"><?php echo e($dataset->name); ?></td>
+                            <td class="px-6 py-3.5 text-xs text-slate-400 sw-mono"><?php echo e($dataset->created_at->format('d M Y, H:i')); ?></td>
+                            <td class="px-6 py-3.5 text-right">
+                                <a href="<?php echo e(route('datasets.show', $dataset->id)); ?>" class="text-xs font-medium mr-4" style="color: #0F2C59;">Lihat</a>
+                                <form action="<?php echo e(route('datasets.destroy', $dataset->id)); ?>" method="POST" class="inline"
+                                      onsubmit="return confirm('Yakin ingin menghapus dataset ini?')">
+                                    <?php echo csrf_field(); ?> <?php echo method_field('DELETE'); ?>
+                                    <button type="submit" class="text-xs text-red-500 hover:text-red-600 font-medium">Hapus</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="sm:hidden divide-y divide-slate-100">
+                <?php $__currentLoopData = $datasets; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $dataset): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                    <div class="px-4 py-3.5">
+                        <p class="text-sm font-medium text-slate-800"><?php echo e($dataset->name); ?></p>
+                        <p class="text-xs text-slate-400 sw-mono mt-0.5 mb-2"><?php echo e($dataset->created_at->format('d M Y, H:i')); ?></p>
+                        <div class="flex gap-4">
+                            <a href="<?php echo e(route('datasets.show', $dataset->id)); ?>" class="text-xs font-medium" style="color: #0F2C59;">Lihat</a>
+                            <form action="<?php echo e(route('datasets.destroy', $dataset->id)); ?>" method="POST"
+                                  onsubmit="return confirm('Yakin ingin menghapus dataset ini?')">
+                                <?php echo csrf_field(); ?> <?php echo method_field('DELETE'); ?>
+                                <button type="submit" class="text-xs text-red-500 font-medium">Hapus</button>
+                            </form>
+                        </div>
+                    </div>
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+            </div>
+        <?php endif; ?>
     </div>
  <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>

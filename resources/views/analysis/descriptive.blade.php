@@ -1,120 +1,103 @@
 <x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            Hasil Statistik Deskriptif — {{ $dataset->name }}
-        </h2>
-    </x-slot>
+    <x-slot name="header">Statistik Deskriptif</x-slot>
 
-    <div class="py-12">
-        <div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
-
-            <div class="mb-4 flex justify-between items-center">
-                <a href="{{ route('analysis.create', $dataset->id) }}" class="text-indigo-600 hover:underline">
-                    &larr; Pilih Kolom Lain
-                </a>
-                <a href="{{ route('datasets.show', $dataset->id) }}" class="text-gray-500 hover:underline text-sm">
-                    Kembali ke Dataset
-                </a>
-            </div>
-
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6 mb-6">
-                <h3 class="text-lg font-medium mb-1">Kolom: {{ $columnName }}</h3>
-                <p class="text-sm text-gray-500 mb-4">Jumlah data valid (N): {{ $stats['n'] }}</p>
-
-                <table class="min-w-full divide-y divide-gray-200">
-                    <tbody class="divide-y divide-gray-200">
-                    <tr>
-                        <td class="px-4 py-2 font-medium text-gray-700">Mean (Rata-rata)</td>
-                        <td class="px-4 py-2">{{ number_format($stats['mean'], 4) }}</td>
-                    </tr>
-                    <tr>
-                        <td class="px-4 py-2 font-medium text-gray-700">Median</td>
-                        <td class="px-4 py-2">{{ number_format($stats['median'], 4) }}</td>
-                    </tr>
-                    <tr>
-                        <td class="px-4 py-2 font-medium text-gray-700">Modus</td>
-                        <td class="px-4 py-2">{{ $stats['mode'] }}</td>
-                    </tr>
-                    <tr>
-                        <td class="px-4 py-2 font-medium text-gray-700">Standar Deviasi</td>
-                        <td class="px-4 py-2">{{ number_format($stats['std_dev'], 4) }}</td>
-                    </tr>
-                    <tr>
-                        <td class="px-4 py-2 font-medium text-gray-700">Variansi</td>
-                        <td class="px-4 py-2">{{ number_format($stats['variance'], 4) }}</td>
-                    </tr>
-                    <tr>
-                        <td class="px-4 py-2 font-medium text-gray-700">Minimum</td>
-                        <td class="px-4 py-2">{{ number_format($stats['min'], 4) }}</td>
-                    </tr>
-                    <tr>
-                        <td class="px-4 py-2 font-medium text-gray-700">Maksimum</td>
-                        <td class="px-4 py-2">{{ number_format($stats['max'], 4) }}</td>
-                    </tr>
-                    <tr>
-                        <td class="px-4 py-2 font-medium text-gray-700">Range</td>
-                        <td class="px-4 py-2">{{ number_format($stats['range'], 4) }}</td>
-                    </tr>
-                    <tr>
-                        <td class="px-4 py-2 font-medium text-gray-700">Q1 (Kuartil 1)</td>
-                        <td class="px-4 py-2">{{ number_format($stats['q1'], 4) }}</td>
-                    </tr>
-                    <tr>
-                        <td class="px-4 py-2 font-medium text-gray-700">Q3 (Kuartil 3)</td>
-                        <td class="px-4 py-2">{{ number_format($stats['q3'], 4) }}</td>
-                    </tr>
-                    </tbody>
-                </table>
-
-                <p class="text-xs text-gray-400 mt-4">
-                    Catatan: Standar deviasi & variansi dihitung menggunakan rumus sampel (n-1),
-                    konsisten dengan STDEV.S / VAR.S di Excel. Kuartil menggunakan metode interpolasi
-                    linear, konsisten dengan QUARTILE.INC di Excel.
-                </p>
-            </div>
-
-            {{-- Histogram --}}
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                <h3 class="text-lg font-medium mb-4">Histogram — {{ $columnName }}</h3>
-                <canvas id="histogramChart" height="100"></canvas>
-            </div>
-
-        </div>
+    <div class="mb-4 flex justify-between items-center">
+        <a href="{{ route('analysis.create', $dataset->id) }}" class="text-sm text-slate-500 hover:text-slate-700 font-medium">
+            &larr; Pilih Analisis Lain
+        </a>
+        <a href="{{ route('datasets.show', $dataset->id) }}" class="text-xs text-slate-400 hover:text-slate-600">
+            Kembali ke Dataset
+        </a>
     </div>
+
+    <div class="bg-white rounded-xl border border-slate-200 p-6 mb-4">
+        <h3 class="text-sm font-semibold text-slate-800 sw-display mb-1">{{ $columnName }}</h3>
+        <p class="text-xs text-slate-400 sw-mono mb-5">N = {{ $stats['n'] }}</p>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-2">
+            @foreach ([
+                'mean' => 'Mean', 'median' => 'Median', 'mode' => 'Modus', 'std_dev' => 'Std Dev',
+                'variance' => 'Variansi', 'min' => 'Min', 'max' => 'Max', 'range' => 'Range',
+                'q1' => 'Q1', 'q3' => 'Q3',
+            ] as $key => $lbl)
+                <div class="bg-slate-50 rounded-lg p-3">
+                    <p class="text-xs text-slate-400 uppercase tracking-wide">{{ $lbl }}</p>
+                    <p class="sw-mono text-sm font-semibold text-slate-800 mt-1">
+                        {{ is_numeric($stats[$key]) ? number_format($stats[$key], 4) : $stats[$key] }}
+                    </p>
+                </div>
+            @endforeach
+        </div>
+
+        <p class="text-xs text-slate-400 mt-4">
+            Standar deviasi & variansi memakai rumus sampel (n-1), konsisten dengan STDEV.S / VAR.S di Excel.
+            Kuartil memakai interpolasi linear, konsisten dengan QUARTILE.INC di Excel.
+        </p>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-200 p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-sm font-semibold text-slate-800 sw-display">Histogram</h3>
+            @if ($latestResult)
+                <button onclick="exportPDF()" id="exportBtn"
+                        class="text-white px-3 py-1.5 text-xs font-medium rounded-lg transition flex items-center gap-2"
+                        style="background: #0F2C59;">
+                    <span id="exportLabel">Export PDF</span>
+                </button>
+            @endif
+        </div>
+        <canvas id="histogramChart" height="100"></canvas>
+    </div>
+
+    @if ($latestResult)
+        <form id="exportForm" action="{{ route('export.analysis_pdf', [$dataset->id, $latestResult->id]) }}" method="POST" style="display:none;">
+            @csrf
+            <input type="hidden" name="chart_image" id="chartImage">
+        </form>
+    @endif
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        const ctx = document.getElementById('histogramChart');
-
-        new Chart(ctx, {
+        const chart = new Chart(document.getElementById('histogramChart'), {
             type: 'bar',
             data: {
                 labels: @json($histogram['labels']),
                 datasets: [{
                     label: 'Frekuensi',
                     data: @json($histogram['values']),
-                    backgroundColor: 'rgba(79, 70, 229, 0.6)',
-                    borderColor: 'rgba(79, 70, 229, 1)',
+                    backgroundColor: 'rgba(15, 44, 89, 0.6)',
+                    borderColor: 'rgba(15, 44, 89, 1)',
                     borderWidth: 1,
                 }]
             },
             options: {
                 responsive: true,
-                plugins: {
-                    legend: { display: false },
-                    title: { display: false },
-                },
+                animation: { duration: 500 },
+                plugins: { legend: { display: false } },
                 scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: { display: true, text: 'Frekuensi' },
-                        ticks: { stepSize: 1 },
-                    },
-                    x: {
-                        title: { display: true, text: '{{ $columnName }}' },
-                    },
+                    y: { beginAtZero: true, title: { display: true, text: 'Frekuensi' }, ticks: { stepSize: 1 } },
+                    x: { title: { display: true, text: '{{ $columnName }}' } },
                 },
             },
         });
+
+        function exportPDF() {
+            const btn = document.getElementById('exportBtn');
+            const label = document.getElementById('exportLabel');
+            btn.disabled = true;
+            label.textContent = 'Menyiapkan...';
+
+            setTimeout(() => {
+                const canvas = document.getElementById('histogramChart');
+                const base64 = canvas.toDataURL('image/png', 1.0);
+                document.getElementById('chartImage').value = base64;
+                document.getElementById('exportForm').submit();
+
+                setTimeout(() => {
+                    btn.disabled = false;
+                    label.textContent = 'Export PDF';
+                }, 2000);
+            }, 600);
+        }
     </script>
 </x-app-layout>
