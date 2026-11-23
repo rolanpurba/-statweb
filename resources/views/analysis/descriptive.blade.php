@@ -57,8 +57,12 @@
     @endif
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    @if ($latestResult)
+        @include('analysis.partials.chart-saver')
+    @endif
     <script>
         const chart = new Chart(document.getElementById('histogramChart'), {
+            plugins: window.statwebChartPlugins || [],
             type: 'bar',
             data: {
                 labels: @json($histogram['labels']),

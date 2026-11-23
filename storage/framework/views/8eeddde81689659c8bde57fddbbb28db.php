@@ -162,6 +162,13 @@
             <?php endif; ?>
         <?php endif; ?>
 
+        <?php if($analysisResult->chart_path): ?>
+            <h4 class="text-xs font-semibold text-slate-500 uppercase tracking-wide mt-5 mb-2">Grafik</h4>
+            <img src="<?php echo e(route('analysis.chart.show', [$dataset->id, $analysisResult->id])); ?>"
+                 alt="Grafik <?php echo e($analysisResult->analysis_label); ?>"
+                 class="w-full max-w-2xl rounded-lg border border-slate-200">
+        <?php endif; ?>
+
         <div class="mt-5 pt-4 border-t border-slate-100 flex gap-3 text-xs">
             <a href="<?php echo e(route('analysis.create', $dataset->id)); ?>" class="text-cyan-700 hover:underline font-medium">
                 Jalankan Analisis Baru →

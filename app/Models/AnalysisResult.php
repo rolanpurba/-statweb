@@ -17,6 +17,7 @@ class AnalysisResult extends Model
         'analysis_label',
         'parameters',
         'result',
+        'chart_path',
     ];
 
     protected $casts = [

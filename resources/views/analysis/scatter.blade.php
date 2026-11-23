@@ -20,8 +20,12 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    @if ($latestResult)
+        @include('analysis.partials.chart-saver')
+    @endif
     <script>
         new Chart(document.getElementById('scatterChart'), {
+            plugins: window.statwebChartPlugins || [],
             type: 'scatter',
             data: {
                 datasets: [{

@@ -49,6 +49,9 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    @if ($latestResult)
+        @include('analysis.partials.chart-saver')
+    @endif
     <script>
         const points = @json($qqPoints);
         const xVals = points.map(p => p.x);
@@ -57,6 +60,7 @@
         const maxVal = Math.max(...xVals, ...yVals);
 
         new Chart(document.getElementById('qqChart'), {
+            plugins: window.statwebChartPlugins || [],
             type: 'scatter',
             data: {
                 datasets: [

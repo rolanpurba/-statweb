@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DatasetController;
 use App\Http\Controllers\AnalysisController;
+use App\Http\Controllers\ChartImageController;
 use App\Http\Controllers\ExportController;
 use Illuminate\Support\Facades\Auth;
 
@@ -45,7 +46,12 @@ Route::middleware(['auth'])->group(function () {
     // Export routes
     Route::get('/datasets/{dataset}/export/csv', [ExportController::class, 'exportDatasetCsv'])->name('export.dataset_csv');
     Route::get('/datasets/{dataset}/export/history-pdf', [ExportController::class, 'exportHistoryPdf'])->name('export.history_pdf');
-    Route::post('/datasets/{dataset}/history/{analysisResult}/export/pdf', [ExportController::class, 'exportAnalysisPdf'])->name('export.analysis_pdf');
+    // GET dipakai tombol di halaman riwayat (pakai gambar tersimpan), POST dipakai form di halaman hasil
+    Route::match(['get', 'post'], '/datasets/{dataset}/history/{analysisResult}/export/pdf', [ExportController::class, 'exportAnalysisPdf'])->name('export.analysis_pdf');
+
+    // Gambar grafik (PNG) yang disimpan dari browser
+    Route::post('/analysis-results/{analysisResult}/chart', [ChartImageController::class, 'store'])->name('analysis.chart.store');
+    Route::get('/datasets/{dataset}/history/{analysisResult}/chart', [ChartImageController::class, 'show'])->name('analysis.chart.show');
 });
 
 Route::get('/dashboard', function () {

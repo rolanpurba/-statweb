@@ -42,8 +42,12 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    @if ($latestResult)
+        @include('analysis.partials.chart-saver')
+    @endif
     <script>
         new Chart(document.getElementById('categoricalChart'), {
+            plugins: window.statwebChartPlugins || [],
             type: 'bar',
             data: {
                 labels: @json(array_keys($frequencies)),

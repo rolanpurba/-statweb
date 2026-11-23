@@ -6,7 +6,10 @@ use App\Models\AnalysisResult;
 use App\Models\Dataset;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Symfony\Component\HttpFoundation\HeaderUtils;
 
 class ExportController extends Controller
 {
@@ -15,14 +18,60 @@ class ExportController extends Controller
         if ($dataset->user_id !== Auth::id()) abort(403);
         if ($analysisResult->dataset_id !== $dataset->id) abort(403);
 
-        $chartImage = $request->input('chart_image');
+        // Dompdf gagal membaca data URI base64 yang panjang, jadi gambar selalu diberikan sebagai FILE di disk.
+        // Prioritas: gambar yang baru dikirim form (halaman hasil), kalau tidak ada pakai PNG tersimpan (riwayat).
+        $tmpFile = null;
+        $chartImage = null;
 
-        $pdf = Pdf::loadView('exports.analysis_pdf', compact('dataset', 'analysisResult', 'chartImage'));
-        $pdf->setPaper('a4', 'portrait');
+        $posted = $request->input('chart_image');
+        $prefix = 'data:image/png;base64,';
+        if (is_string($posted) && str_starts_with($posted, $prefix)) {
+            $binary = base64_decode(substr($posted, strlen($prefix)), true);
+            if ($binary !== false && str_starts_with($binary, "\x89PNG\r\n\x1a\n")) {
+                $dir = storage_path('app/private/tmp');
+                if (!is_dir($dir)) {
+                    mkdir($dir, 0775, true);
+                }
+                $tmpFile = $dir . DIRECTORY_SEPARATOR . 'chart-' . Str::uuid() . '.png';
+                file_put_contents($tmpFile, $binary);
+                $chartImage = $this->pdfFilePath($tmpFile);
+            }
+        }
+
+        $chartImage ??= $this->storedChartPath($analysisResult);
+
+        try {
+            $pdf = Pdf::loadView('exports.analysis_pdf', compact('dataset', 'analysisResult', 'chartImage'));
+            $pdf->setPaper('a4', 'portrait');
+            $output = $pdf->output(); // render sekarang, selagi file sementara masih ada
+        } finally {
+            if ($tmpFile && is_file($tmpFile)) {
+                @unlink($tmpFile);
+            }
+        }
 
         $filename = 'StatWeb_' . str_replace(' ', '_', $analysisResult->analysis_label) . '_' . now()->format('Ymd_His') . '.pdf';
 
-        return $pdf->download($filename);
+        return response($output, 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => HeaderUtils::makeDisposition(HeaderUtils::DISPOSITION_ATTACHMENT, $filename, Str::ascii($filename)),
+        ]);
+    }
+
+    // Lokasi PNG grafik yang tersimpan di server, dalam bentuk yang dimengerti Dompdf (garis miring biasa).
+    private function storedChartPath(AnalysisResult $analysisResult): ?string
+    {
+        $disk = Storage::disk('local');
+        if (!$analysisResult->chart_path || !$disk->exists($analysisResult->chart_path)) {
+            return null;
+        }
+
+        return $this->pdfFilePath($disk->path($analysisResult->chart_path));
+    }
+
+    private function pdfFilePath(string $path): string
+    {
+        return str_replace('\\', '/', $path);
     }
 
     public function exportHistoryPdf(Dataset $dataset)

@@ -67,8 +67,12 @@
     <?php endif; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <?php if($latestResult): ?>
+        <?php echo $__env->make('analysis.partials.chart-saver', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+    <?php endif; ?>
     <script>
         const chart = new Chart(document.getElementById('histogramChart'), {
+            plugins: window.statwebChartPlugins || [],
             type: 'bar',
             data: {
                 labels: <?php echo json_encode($histogram['labels'], 15, 512) ?>,
