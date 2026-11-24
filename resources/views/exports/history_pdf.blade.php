@@ -5,7 +5,7 @@
     <title>Riwayat Analisis — {{ $dataset->name }}</title>
     <style>
         body { font-family: Arial, sans-serif; font-size: 12px; color: #333; margin: 0; padding: 20px; }
-        h1 { font-size: 18px; color: #1e3a5f; margin-bottom: 4px; }
+        h1 { font-size: 18px; color: #162032; margin-bottom: 4px; }
         .meta { font-size: 11px; color: #6b7280; margin-bottom: 20px; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
         th { background: #f3f4f6; text-align: left; padding: 6px 10px; font-size: 11px; color: #6b7280; text-transform: uppercase; border: 1px solid #e5e7eb; }

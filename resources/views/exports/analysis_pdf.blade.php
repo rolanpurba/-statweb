@@ -6,7 +6,7 @@
     <title>{{ $analysisResult->analysis_label }}</title>
     <style>
         body { font-family: Arial, sans-serif; font-size: 12px; color: #333; margin: 0; padding: 20px; }
-        h1 { font-size: 18px; color: #0F2C59; margin-bottom: 4px; }
+        h1 { font-size: 18px; color: #162032; margin-bottom: 4px; }
         h2 { font-size: 14px; color: #374151; margin-top: 20px; margin-bottom: 8px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
         .meta { font-size: 11px; color: #6b7280; margin-bottom: 20px; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
@@ -19,7 +19,7 @@
         .note { font-size: 10px; color: #9ca3af; font-style: italic; margin-bottom: 10px; }
         .caption { font-size: 10px; color: #4b5563; background: #f9fafb; border: 1px solid #e5e7eb; padding: 6px 8px; margin: 8px 0 14px 0; line-height: 1.4; }
         .chart-box { position: relative; border: 1px solid #e5e7eb; background: #fafafa; margin-bottom: 8px; }
-        .dot { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: #0F2C59; opacity: 0.75; }
+        .dot { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: #162032; opacity: 0.75; }
         .dash-line { position: absolute; height: 0; border-top: 1.5px dashed #DC2626; transform-origin: 0 0; }
     </style>
 </head>
@@ -78,7 +78,7 @@
             <img src="{{ $chartImage }}" style="width: 100%; max-width: 500px; height: auto;">
         @else
             {!! \App\Support\PdfChart::bars($hist['labels'], $hist['values'], [
-                'color'   => '#0F2C59',
+                'color'   => '#162032',
                 'gap'     => 0.04,
                 'x_title' => $colName . ' (rentang nilai per kelas)',
                 'y_title' => 'Frekuensi (jumlah data)',

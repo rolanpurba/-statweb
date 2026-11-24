@@ -60,12 +60,13 @@
                     @foreach ($columns as $col)
                         <th class="px-3 py-2 text-left text-xs font-medium text-slate-500 whitespace-nowrap">
                             {{ $col->label ?: $col->column_name }}
-                            <span class="text-slate-300 font-normal ml-1">
-                                    @if ($col->measure === 'scale') ⚖
-                                @elseif ($col->measure === 'ordinal') ↕
-                                @else ≡
-                                @endif
-                                </span>
+                            @if ($col->measure === 'scale')
+                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 ml-1">Scale</span>
+                            @elseif ($col->measure === 'ordinal')
+                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-50 text-purple-700 ml-1">Ordinal</span>
+                            @else
+                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 ml-1">Nominal</span>
+                            @endif
                         </th>
                     @endforeach
                     <th class="px-3 py-2 w-10"></th>
@@ -123,7 +124,7 @@
                         <tr class="hover:bg-slate-50/60">
                             <td class="px-4 py-2 font-medium text-slate-700 sw-mono text-xs">{{ $col->column_name }}</td>
                             <td class="px-4 py-2">
-                                <select name="columns[{{ $i }}][data_type]" class="border-slate-300 rounded-lg text-xs w-full focus:border-[#F6C90E] focus:ring-[#F6C90E]">
+                                <select name="columns[{{ $i }}][data_type]" class="border-slate-300 rounded-lg text-xs w-full focus:border-sw-gold focus:ring-sw-gold">
                                     <option value="numeric" {{ $col->data_type === 'numeric' ? 'selected' : '' }}>Numeric</option>
                                     <option value="categorical" {{ $col->data_type === 'categorical' ? 'selected' : '' }}>String</option>
                                 </select>
@@ -131,15 +132,15 @@
                             <td class="px-4 py-2">
                                 <input type="text" name="columns[{{ $i }}][label]" value="{{ $col->label }}"
                                        placeholder="Label opsional"
-                                       class="border-slate-300 rounded-lg text-xs w-full focus:border-[#F6C90E] focus:ring-[#F6C90E]">
+                                       class="border-slate-300 rounded-lg text-xs w-full focus:border-sw-gold focus:ring-sw-gold">
                             </td>
                             <td class="px-4 py-2">
                                 <input type="number" name="columns[{{ $i }}][decimals]" value="{{ $col->decimals ?? 2 }}"
                                        min="0" max="10"
-                                       class="border-slate-300 rounded-lg text-xs w-16 focus:border-[#F6C90E] focus:ring-[#F6C90E]">
+                                       class="border-slate-300 rounded-lg text-xs w-16 focus:border-sw-gold focus:ring-sw-gold">
                             </td>
                             <td class="px-4 py-2">
-                                <select name="columns[{{ $i }}][measure]" class="border-slate-300 rounded-lg text-xs w-full focus:border-[#F6C90E] focus:ring-[#F6C90E]">
+                                <select name="columns[{{ $i }}][measure]" class="border-slate-300 rounded-lg text-xs w-full focus:border-sw-gold focus:ring-sw-gold">
                                     <option value="nominal" {{ ($col->measure ?? 'nominal') === 'nominal' ? 'selected' : '' }}>Nominal</option>
                                     <option value="ordinal" {{ ($col->measure ?? '') === 'ordinal' ? 'selected' : '' }}>Ordinal</option>
                                     <option value="scale" {{ ($col->measure ?? '') === 'scale' ? 'selected' : '' }}>Scale</option>
