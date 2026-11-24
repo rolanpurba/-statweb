@@ -7,6 +7,8 @@ use App\Models\DatasetColumn;
 use App\Models\DatasetRow;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 
 class DatasetController extends Controller
@@ -21,10 +23,10 @@ class DatasetController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'file' => 'required|file|mimes:csv,txt,xlsx,xls|max:51200',
+            'file' => 'required|file|mimes:csv,txt,xlsx,xls|max:20480',
         ]);
 
-        $path = $request->file('file')->store('datasets', 'public');
+        $path = $request->file('file')->store('datasets', 'local');
 
         $dataset = Dataset::create([
             'user_id'   => Auth::id(),
@@ -32,16 +34,23 @@ class DatasetController extends Controller
             'file_path' => $path,
         ]);
 
-        $fullPath   = storage_path('app/public/' . $path);
+        $fullPath   = Storage::disk('local')->path($path);
         $rows       = Excel::toArray([], $fullPath);
-        $headerRow  = $rows[0][0] ?? [];
+        $rawHeaders = $rows[0][0] ?? [];
         $dataRows   = array_slice($rows[0], 1);
         $sampleRows = array_slice($dataRows, 0, 20);
 
+        // Bersihkan dan amankan nama kolom
+        $headerRow = [];
+        foreach ($rawHeaders as $index => $rawCol) {
+            if ($rawCol === null || trim((string) $rawCol) === '') continue;
+            $cleanName = preg_replace('/[^\p{L}\p{N}_\-\s]/u', '', trim((string) $rawCol));
+            $cleanName = mb_substr($cleanName !== '' ? $cleanName : 'kolom_' . ($index + 1), 0, 64);
+            $headerRow[$index] = $cleanName;
+        }
+
         // Deteksi tipe kolom & simpan ke dataset_columns
         foreach ($headerRow as $index => $columnName) {
-            if (empty($columnName)) continue;
-
             $values = array_column($sampleRows, $index);
             $isNumeric = true;
             $hasAtLeastOneValue = false;
@@ -60,32 +69,47 @@ class DatasetController extends Controller
 
             DatasetColumn::create([
                 'dataset_id'  => $dataset->id,
-                'column_name' => trim($columnName),
+                'column_name' => $columnName,
                 'data_type'   => $isNumeric ? 'numeric' : 'categorical',
                 'measure'     => $isNumeric ? 'scale' : 'nominal',
             ]);
         }
 
-        // Simpan tiap baris data ke dataset_rows
-        foreach ($dataRows as $rowIndex => $row) {
-            $hasData = false;
-            foreach ($row as $cell) {
-                if ($cell !== null && $cell !== '') { $hasData = true; break; }
-            }
-            if (!$hasData) continue;
+        // Simpan baris data secara batch di dalam transaksi (hemat memori & disk I/O)
+        DB::transaction(function () use ($dataset, $headerRow, $dataRows) {
+            $batch = [];
+            $now = now();
 
-            $rowData = [];
-            foreach ($headerRow as $colIndex => $colName) {
-                if (empty($colName)) continue;
-                $rowData[trim($colName)] = $row[$colIndex] ?? null;
+            foreach ($dataRows as $rowIndex => $row) {
+                $hasData = false;
+                foreach ($row as $cell) {
+                    if ($cell !== null && $cell !== '') { $hasData = true; break; }
+                }
+                if (!$hasData) continue;
+
+                $rowData = [];
+                foreach ($headerRow as $colIndex => $colName) {
+                    $rowData[$colName] = $row[$colIndex] ?? null;
+                }
+
+                $batch[] = [
+                    'dataset_id' => $dataset->id,
+                    'row_number' => $rowIndex + 1,
+                    'data'       => json_encode($rowData),
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+
+                if (count($batch) >= 500) {
+                    DatasetRow::insert($batch);
+                    $batch = [];
+                }
             }
 
-            DatasetRow::create([
-                'dataset_id' => $dataset->id,
-                'row_number' => $rowIndex + 1,
-                'data'       => $rowData,
-            ]);
-        }
+            if (!empty($batch)) {
+                DatasetRow::insert($batch);
+            }
+        });
 
         return redirect()->route('datasets.show', $dataset->id)
             ->with('success', 'Dataset berhasil diupload!');
@@ -136,6 +160,11 @@ class DatasetController extends Controller
             'column_name' => 'required|string',
             'value'       => 'nullable|string',
         ]);
+
+        $columnExists = $dataset->columns()->where('column_name', $request->column_name)->exists();
+        if (!$columnExists) {
+            return response()->json(['message' => 'Kolom tidak valid.'], 422);
+        }
 
         $row = DatasetRow::where('id', $request->row_id)
             ->where('dataset_id', $dataset->id)
@@ -194,7 +223,7 @@ class DatasetController extends Controller
     public function destroy(Dataset $dataset)
     {
         if ($dataset->user_id !== Auth::id()) abort(403);
-        \Storage::disk('public')->delete($dataset->file_path);
+        Storage::disk('local')->delete($dataset->file_path);
         $dataset->delete();
         return redirect()->route('datasets.index')
             ->with('success', 'Dataset berhasil dihapus.');

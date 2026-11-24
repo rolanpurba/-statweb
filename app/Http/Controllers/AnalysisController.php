@@ -6,7 +6,6 @@ use App\Models\AnalysisResult;
 use App\Models\Dataset;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Maatwebsite\Excel\Facades\Excel;
 use MathPHP\Statistics\Average;
 use MathPHP\Statistics\Descriptive;
 
@@ -63,15 +62,12 @@ class AnalysisController extends Controller
         if ($dataset->user_id !== Auth::id()) abort(403);
         $request->validate(['column' => 'required|string']);
         $columnName = $request->column;
-        $fullPath = storage_path('app/public/' . $dataset->file_path);
-        $rows = Excel::toArray([], $fullPath);
-        $headerRow = $rows[0][0] ?? [];
-        $dataRows = array_slice($rows[0], 1);
-        $columnIndex = array_search($columnName, $headerRow);
-        if ($columnIndex === false) return back()->withErrors(['column' => 'Kolom tidak ditemukan.']);
+        $columnExists = $dataset->columns()->where('column_name', $columnName)->exists();
+        if (!$columnExists) return back()->withErrors(['column' => 'Kolom tidak ditemukan.']);
+
         $frequencies = [];
-        foreach ($dataRows as $row) {
-            $val = trim((string) ($row[$columnIndex] ?? ''));
+        foreach ($dataset->rows()->cursor() as $row) {
+            $val = trim((string) ($row->data[$columnName] ?? ''));
             if ($val === '') continue;
             $frequencies[$val] = ($frequencies[$val] ?? 0) + 1;
         }
@@ -100,17 +96,16 @@ class AnalysisController extends Controller
         $request->validate(['column_x' => 'required|string', 'column_y' => 'required|string|different:column_x']);
         $columnX = $request->column_x;
         $columnY = $request->column_y;
-        $fullPath = storage_path('app/public/' . $dataset->file_path);
-        $rows = Excel::toArray([], $fullPath);
-        $headerRow = $rows[0][0] ?? [];
-        $dataRows = array_slice($rows[0], 1);
-        $indexX = array_search($columnX, $headerRow);
-        $indexY = array_search($columnY, $headerRow);
-        if ($indexX === false || $indexY === false) return back()->withErrors(['column_x' => 'Kolom tidak ditemukan.']);
+        $validCols = $dataset->columns()->whereIn('column_name', [$columnX, $columnY])->count();
+        if ($validCols < 2) return back()->withErrors(['column_x' => 'Kolom tidak ditemukan.']);
+
         $points = [];
-        foreach ($dataRows as $row) {
-            $normX = str_replace(',', '.', (string) ($row[$indexX] ?? ''));
-            $normY = str_replace(',', '.', (string) ($row[$indexY] ?? ''));
+        foreach ($dataset->rows()->cursor() as $row) {
+            $valX = $row->data[$columnX] ?? null;
+            $valY = $row->data[$columnY] ?? null;
+            if ($valX === null || $valX === '' || $valY === null || $valY === '') continue;
+            $normX = str_replace(',', '.', (string) $valX);
+            $normY = str_replace(',', '.', (string) $valY);
             if (is_numeric($normX) && is_numeric($normY)) {
                 $points[] = ['x' => (float) $normX, 'y' => (float) $normY];
             }
@@ -206,17 +201,12 @@ class AnalysisController extends Controller
         $request->validate(['column_value' => 'required|string', 'column_group' => 'required|string|different:column_value']);
         $columnValue = $request->column_value;
         $columnGroup = $request->column_group;
-        $fullPath = storage_path('app/public/' . $dataset->file_path);
-        $rows = Excel::toArray([], $fullPath);
-        $headerRow = $rows[0][0] ?? [];
-        $dataRows = array_slice($rows[0], 1);
-        $indexValue = array_search($columnValue, $headerRow);
-        $indexGroup = array_search($columnGroup, $headerRow);
-        if ($indexValue === false || $indexGroup === false) return back()->withErrors(['column_value' => 'Kolom tidak ditemukan.']);
+        $validCols = $dataset->columns()->whereIn('column_name', [$columnValue, $columnGroup])->count();
+        if ($validCols < 2) return back()->withErrors(['column_value' => 'Kolom tidak ditemukan.']);
         $groups = [];
-        foreach ($dataRows as $row) {
-            $val = $row[$indexValue] ?? null;
-            $group = trim((string) ($row[$indexGroup] ?? ''));
+        foreach ($dataset->rows()->cursor() as $row) {
+            $val = $row->data[$columnValue] ?? null;
+            $group = trim((string) ($row->data[$columnGroup] ?? ''));
             if ($group === '') continue;
             $norm = str_replace(',', '.', trim((string) ($val ?? '')));
             if ($norm === '' || !is_numeric($norm)) continue;
@@ -267,16 +257,11 @@ class AnalysisController extends Controller
         $request->validate(['column_1' => 'required|string', 'column_2' => 'required|string|different:column_1']);
         $column1 = $request->column_1;
         $column2 = $request->column_2;
-        $fullPath = storage_path('app/public/' . $dataset->file_path);
-        $rows = Excel::toArray([], $fullPath);
-        $headerRow = $rows[0][0] ?? [];
-        $dataRows = array_slice($rows[0], 1);
-        $index1 = array_search($column1, $headerRow);
-        $index2 = array_search($column2, $headerRow);
-        if ($index1 === false || $index2 === false) return back()->withErrors(['column_1' => 'Kolom tidak ditemukan.']);
+        $validCols = $dataset->columns()->whereIn('column_name', [$column1, $column2])->count();
+        if ($validCols < 2) return back()->withErrors(['column_1' => 'Kolom tidak ditemukan.']);
         $val1 = []; $val2 = [];
-        foreach ($dataRows as $row) {
-            $v1 = $row[$index1] ?? null; $v2 = $row[$index2] ?? null;
+        foreach ($dataset->rows()->cursor() as $row) {
+            $v1 = $row->data[$column1] ?? null; $v2 = $row->data[$column2] ?? null;
             if ($v1 === null || $v1 === '' || $v2 === null || $v2 === '') continue;
             $n1 = str_replace(',', '.', (string) $v1);
             $n2 = str_replace(',', '.', (string) $v2);
@@ -324,17 +309,12 @@ class AnalysisController extends Controller
         $request->validate(['column_value' => 'required|string', 'column_group' => 'required|string|different:column_value']);
         $columnValue = $request->column_value;
         $columnGroup = $request->column_group;
-        $fullPath = storage_path('app/public/' . $dataset->file_path);
-        $rows = Excel::toArray([], $fullPath);
-        $headerRow = $rows[0][0] ?? [];
-        $dataRows = array_slice($rows[0], 1);
-        $indexValue = array_search($columnValue, $headerRow);
-        $indexGroup = array_search($columnGroup, $headerRow);
-        if ($indexValue === false || $indexGroup === false) return back()->withErrors(['column_value' => 'Kolom tidak ditemukan.']);
+        $validCols = $dataset->columns()->whereIn('column_name', [$columnValue, $columnGroup])->count();
+        if ($validCols < 2) return back()->withErrors(['column_value' => 'Kolom tidak ditemukan.']);
         $groups = [];
-        foreach ($dataRows as $row) {
-            $val = $row[$indexValue] ?? null;
-            $group = trim((string) ($row[$indexGroup] ?? ''));
+        foreach ($dataset->rows()->cursor() as $row) {
+            $val = $row->data[$columnValue] ?? null;
+            $group = trim((string) ($row->data[$columnGroup] ?? ''));
             if ($group === '') continue;
             $norm = str_replace(',', '.', trim((string) ($val ?? '')));
             if ($norm === '' || !is_numeric($norm)) continue;
@@ -394,17 +374,15 @@ class AnalysisController extends Controller
         if ($dataset->user_id !== Auth::id()) abort(403);
         $request->validate(['column_x' => 'required|string', 'column_y' => 'required|string|different:column_x', 'method' => 'required|in:pearson,spearman']);
         $columnX = $request->column_x; $columnY = $request->column_y; $method = $request->method();
-        $fullPath = storage_path('app/public/' . $dataset->file_path);
-        $rows = Excel::toArray([], $fullPath);
-        $headerRow = $rows[0][0] ?? [];
-        $dataRows = array_slice($rows[0], 1);
-        $indexX = array_search($columnX, $headerRow);
-        $indexY = array_search($columnY, $headerRow);
-        if ($indexX === false || $indexY === false) return back()->withErrors(['column_x' => 'Kolom tidak ditemukan.']);
+        $validCols = $dataset->columns()->whereIn('column_name', [$columnX, $columnY])->count();
+        if ($validCols < 2) return back()->withErrors(['column_x' => 'Kolom tidak ditemukan.']);
         $xValues = []; $yValues = [];
-        foreach ($dataRows as $row) {
-            $vx = str_replace(',', '.', (string) ($row[$indexX] ?? ''));
-            $vy = str_replace(',', '.', (string) ($row[$indexY] ?? ''));
+        foreach ($dataset->rows()->cursor() as $row) {
+            $valX = $row->data[$columnX] ?? null;
+            $valY = $row->data[$columnY] ?? null;
+            if ($valX === null || $valX === '' || $valY === null || $valY === '') continue;
+            $vx = str_replace(',', '.', (string) $valX);
+            $vy = str_replace(',', '.', (string) $valY);
             if (is_numeric($vx) && is_numeric($vy)) { $xValues[] = (float) $vx; $yValues[] = (float) $vy; }
         }
         if (count($xValues) < 3) return back()->withErrors(['column_x' => 'Minimal dibutuhkan 3 pasangan data.']);
@@ -451,17 +429,12 @@ class AnalysisController extends Controller
         if ($dataset->user_id !== Auth::id()) abort(403);
         $request->validate(['column_1' => 'required|string', 'column_2' => 'required|string|different:column_1']);
         $column1 = $request->column_1; $column2 = $request->column_2;
-        $fullPath = storage_path('app/public/' . $dataset->file_path);
-        $rows = Excel::toArray([], $fullPath);
-        $headerRow = $rows[0][0] ?? [];
-        $dataRows = array_slice($rows[0], 1);
-        $index1 = array_search($column1, $headerRow);
-        $index2 = array_search($column2, $headerRow);
-        if ($index1 === false || $index2 === false) return back()->withErrors(['column_1' => 'Kolom tidak ditemukan.']);
+        $validCols = $dataset->columns()->whereIn('column_name', [$column1, $column2])->count();
+        if ($validCols < 2) return back()->withErrors(['column_1' => 'Kolom tidak ditemukan.']);
         $contingency = []; $rows1 = []; $cols2 = [];
-        foreach ($dataRows as $row) {
-            $v1 = trim((string) ($row[$index1] ?? ''));
-            $v2 = trim((string) ($row[$index2] ?? ''));
+        foreach ($dataset->rows()->cursor() as $row) {
+            $v1 = trim((string) ($row->data[$column1] ?? ''));
+            $v2 = trim((string) ($row->data[$column2] ?? ''));
             if ($v1 === '' || $v2 === '') continue;
             $contingency[$v1][$v2] = ($contingency[$v1][$v2] ?? 0) + 1;
             $rows1[$v1] = true; $cols2[$v2] = true;
@@ -519,17 +492,15 @@ class AnalysisController extends Controller
         if ($dataset->user_id !== Auth::id()) abort(403);
         $request->validate(['column_x' => 'required|string', 'column_y' => 'required|string|different:column_x']);
         $columnX = $request->column_x; $columnY = $request->column_y;
-        $fullPath = storage_path('app/public/' . $dataset->file_path);
-        $rows = Excel::toArray([], $fullPath);
-        $headerRow = $rows[0][0] ?? [];
-        $dataRows = array_slice($rows[0], 1);
-        $indexX = array_search($columnX, $headerRow);
-        $indexY = array_search($columnY, $headerRow);
-        if ($indexX === false || $indexY === false) return back()->withErrors(['column_x' => 'Kolom tidak ditemukan.']);
+        $validCols = $dataset->columns()->whereIn('column_name', [$columnX, $columnY])->count();
+        if ($validCols < 2) return back()->withErrors(['column_x' => 'Kolom tidak ditemukan.']);
         $xValues = []; $yValues = [];
-        foreach ($dataRows as $row) {
-            $vx = str_replace(',', '.', (string) ($row[$indexX] ?? ''));
-            $vy = str_replace(',', '.', (string) ($row[$indexY] ?? ''));
+        foreach ($dataset->rows()->cursor() as $row) {
+            $valX = $row->data[$columnX] ?? null;
+            $valY = $row->data[$columnY] ?? null;
+            if ($valX === null || $valX === '' || $valY === null || $valY === '') continue;
+            $vx = str_replace(',', '.', (string) $valX);
+            $vy = str_replace(',', '.', (string) $valY);
             if (is_numeric($vx) && is_numeric($vy)) { $xValues[] = (float) $vx; $yValues[] = (float) $vy; }
         }
         if (count($xValues) < 3) return back()->withErrors(['column_x' => 'Minimal dibutuhkan 3 pasangan data.']);
@@ -601,20 +572,20 @@ class AnalysisController extends Controller
         $request->validate(['column_y' => 'required|string', 'columns_x' => 'required|array|min:2', 'columns_x.*' => 'required|string']);
         $columnY = $request->column_y; $columnsX = $request->columns_x;
         if (in_array($columnY, $columnsX)) return back()->withErrors(['column_y' => 'Variabel Y tidak boleh sama dengan salah satu variabel X.']);
-        $fullPath = storage_path('app/public/' . $dataset->file_path);
-        $rows = Excel::toArray([], $fullPath);
-        $headerRow = $rows[0][0] ?? [];
-        $dataRows = array_slice($rows[0], 1);
-        $indexY = array_search($columnY, $headerRow);
-        $indexXs = array_map(fn($col) => array_search($col, $headerRow), $columnsX);
-        if ($indexY === false || in_array(false, $indexXs)) return back()->withErrors(['column_y' => 'Satu atau lebih kolom tidak ditemukan.']);
+        $allCols = array_merge([$columnY], $columnsX);
+        $validColsCount = $dataset->columns()->whereIn('column_name', $allCols)->count();
+        if ($validColsCount < count($allCols)) return back()->withErrors(['column_y' => 'Satu atau lebih kolom tidak ditemukan.']);
         $yValues = []; $xMatrix = [];
-        foreach ($dataRows as $row) {
-            $vy = str_replace(',', '.', (string) ($row[$indexY] ?? ''));
+        foreach ($dataset->rows()->cursor() as $row) {
+            $valY = $row->data[$columnY] ?? null;
+            if ($valY === null || $valY === '') continue;
+            $vy = str_replace(',', '.', (string) $valY);
             if (!is_numeric($vy)) continue;
             $xRow = []; $valid = true;
-            foreach ($indexXs as $ix) {
-                $vx = str_replace(',', '.', (string) ($row[$ix] ?? ''));
+            foreach ($columnsX as $colX) {
+                $valX = $row->data[$colX] ?? null;
+                if ($valX === null || $valX === '') { $valid = false; break; }
+                $vx = str_replace(',', '.', (string) $valX);
                 if (!is_numeric($vx)) { $valid = false; break; }
                 $xRow[] = (float) $vx;
             }
@@ -900,15 +871,12 @@ class AnalysisController extends Controller
 
     private function getNumericValues(Dataset $dataset, string $columnName): array|string
     {
-        $fullPath = storage_path('app/public/' . $dataset->file_path);
-        $rows = Excel::toArray([], $fullPath);
-        $headerRow = $rows[0][0] ?? [];
-        $dataRows = array_slice($rows[0], 1);
-        $columnIndex = array_search($columnName, $headerRow);
-        if ($columnIndex === false) return 'Kolom tidak ditemukan.';
+        $columnExists = $dataset->columns()->where('column_name', $columnName)->exists();
+        if (!$columnExists) return 'Kolom tidak ditemukan.';
+
         $values = [];
-        foreach ($dataRows as $row) {
-            $val = $row[$columnIndex] ?? null;
+        foreach ($dataset->rows()->cursor() as $row) {
+            $val = $row->data[$columnName] ?? null;
             if ($val !== null && $val !== '') {
                 $normalized = str_replace(',', '.', (string) $val);
                 if (is_numeric($normalized)) $values[] = (float) $normalized;

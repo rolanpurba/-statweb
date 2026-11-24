@@ -177,7 +177,7 @@
             cell.style.backgroundColor = '#fefce8';
             fetch('{{ route("datasets.update_cell", $dataset->id) }}', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                 body: JSON.stringify({ row_id: rowId, column_name: columnName, value: value }),
             })
                 .then(res => res.json())
@@ -191,7 +191,7 @@
         function addRow() {
             fetch('{{ route("datasets.add_row", $dataset->id) }}', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                 body: JSON.stringify({}),
             })
                 .then(res => res.json())
@@ -199,19 +199,38 @@
                     if (!data.success) return;
                     const tbody = document.getElementById('tableBody');
                     const columns = @json($columns->pluck('column_name'));
-                    let cells = `<td class="px-3 py-1.5 text-slate-300 text-xs sw-mono">${data.row_number}</td>`;
-                    columns.forEach(col => {
-                        cells += `<td class="px-3 py-1.5 sw-mono text-slate-700 cursor-text min-w-24 rounded"
-                        contenteditable="true" data-row-id="${data.row_id}" data-column="${col}"
-                        onblur="saveCell(this)"></td>`;
-                    });
-                    cells += `<td class="px-3 py-1.5 text-center">
-                    <button onclick="deleteRow(${data.row_id})" class="text-slate-300 hover:text-red-500 text-xs transition">✕</button>
-                </td>`;
+
                     const tr = document.createElement('tr');
                     tr.id = `row-${data.row_id}`;
                     tr.className = 'hover:bg-slate-50/60';
-                    tr.innerHTML = cells;
+
+                    // Nomor baris
+                    const numTd = document.createElement('td');
+                    numTd.className = 'px-3 py-1.5 text-slate-300 text-xs font-mono';
+                    numTd.textContent = data.row_number;
+                    tr.appendChild(numTd);
+
+                    // Sel kolom data (aman dari XSS melalui atribut dataset)
+                    columns.forEach(col => {
+                        const td = document.createElement('td');
+                        td.className = 'px-3 py-1.5 font-mono text-slate-700 cursor-text min-w-24 rounded';
+                        td.contentEditable = 'true';
+                        td.dataset.rowId = data.row_id;
+                        td.dataset.column = col;
+                        td.onblur = function() { saveCell(this); };
+                        tr.appendChild(td);
+                    });
+
+                    // Tombol hapus baris
+                    const actionTd = document.createElement('td');
+                    actionTd.className = 'px-3 py-1.5 text-center';
+                    const delBtn = document.createElement('button');
+                    delBtn.className = 'text-slate-300 hover:text-red-500 text-xs transition';
+                    delBtn.textContent = '✕';
+                    delBtn.onclick = function() { deleteRow(data.row_id); };
+                    actionTd.appendChild(delBtn);
+                    tr.appendChild(actionTd);
+
                     tbody.appendChild(tr);
                 });
         }
@@ -220,7 +239,7 @@
             if (!confirm('Yakin ingin menghapus baris ini?')) return;
             fetch('{{ route("datasets.delete_row", $dataset->id) }}', {
                 method: 'DELETE',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                 body: JSON.stringify({ row_id: rowId }),
             })
                 .then(res => res.json())

@@ -25,9 +25,9 @@ class ExportController extends Controller
 
         $posted = $request->input('chart_image');
         $prefix = 'data:image/png;base64,';
-        if (is_string($posted) && str_starts_with($posted, $prefix)) {
+        if (is_string($posted) && strlen($posted) <= 4500000 && str_starts_with($posted, $prefix)) {
             $binary = base64_decode(substr($posted, strlen($prefix)), true);
-            if ($binary !== false && str_starts_with($binary, "\x89PNG\r\n\x1a\n")) {
+            if ($binary !== false && strlen($binary) <= 3145728 && str_starts_with($binary, "\x89PNG\r\n\x1a\n")) {
                 $dir = storage_path('app/private/tmp');
                 if (!is_dir($dir)) {
                     mkdir($dir, 0775, true);
@@ -93,25 +93,37 @@ class ExportController extends Controller
         if ($dataset->user_id !== Auth::id()) abort(403);
 
         $columns = $dataset->columns;
-        $rows = $dataset->rows()->orderBy('row_number')->get();
-
         $filename = 'StatWeb_' . str_replace(' ', '_', $dataset->name) . '_' . now()->format('Ymd_His') . '.csv';
 
         $headers = [
-            'Content-Type' => 'text/csv',
+            'Content-Type'        => 'text/csv; charset=UTF-8',
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ];
 
-        $callback = function () use ($columns, $rows) {
+        $callback = function () use ($columns, $dataset) {
             $file = fopen('php://output', 'w');
-            fputcsv($file, $columns->pluck('column_name')->toArray(), ';');
-            foreach ($rows as $row) {
+
+            // Fungsi proteksi formula injection (CWE-1236)
+            $sanitizeCell = static function ($val): string {
+                $str = (string) ($val ?? '');
+                if ($str !== '' && in_array($str[0], ['=', '+', '-', '@', "\t", "\r"], true)) {
+                    return "'" . $str;
+                }
+                return $str;
+            };
+
+            // Tulis header
+            fputcsv($file, $columns->pluck('column_name')->map($sanitizeCell)->toArray(), ';');
+
+            // Streaming data menggunakan cursor() (hemat RAM & streaming langsung ke output)
+            foreach ($dataset->rows()->orderBy('row_number')->cursor() as $row) {
                 $rowData = [];
                 foreach ($columns as $col) {
-                    $rowData[] = $row->data[$col->column_name] ?? '';
+                    $rowData[] = $sanitizeCell($row->data[$col->column_name] ?? '');
                 }
                 fputcsv($file, $rowData, ';');
             }
+
             fclose($file);
         };
 
