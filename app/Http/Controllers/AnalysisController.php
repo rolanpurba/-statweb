@@ -167,6 +167,9 @@ class AnalysisController extends Controller
         $n = count($values);
         $mean = Average::mean($values);
         $stdDev = Descriptive::standardDeviation($values, Descriptive::SAMPLE);
+        if ($stdDev <= 1e-12) {
+            return back()->withErrors(['column' => 'Variansi data bernilai 0 (semua nilai data sama). Uji-t memerlukan data yang bervariasi.']);
+        }
         $se = $stdDev / sqrt($n);
         $t = ($mean - $testValue) / $se;
         $df = $n - 1;
@@ -220,9 +223,14 @@ class AnalysisController extends Controller
         $n1 = count($g1); $n2 = count($g2);
         $mean1 = Average::mean($g1); $mean2 = Average::mean($g2);
         $var1 = Descriptive::sampleVariance($g1); $var2 = Descriptive::sampleVariance($g2);
-        $se = sqrt($var1/$n1 + $var2/$n2);
+        $denomSe = $var1/$n1 + $var2/$n2;
+        if ($denomSe <= 1e-12) {
+            return back()->withErrors(['column_value' => 'Variansi data pada kedua kelompok bernilai 0 (semua nilai data sama).']);
+        }
+        $se = sqrt($denomSe);
         $t = ($mean1 - $mean2) / $se;
-        $df = (int) floor((($var1/$n1 + $var2/$n2) ** 2) / ((($var1/$n1)**2)/($n1-1) + (($var2/$n2)**2)/($n2-1)));
+        $denomDf = (($var1/$n1)**2)/($n1-1) + (($var2/$n2)**2)/($n2-1);
+        $df = $denomDf > 0 ? (int) floor(($denomSe ** 2) / $denomDf) : ($n1 + $n2 - 2);
         $pValue = 2 * (1 - $this->tCDF(abs($t), $df));
         $result = [
             'group1' => $groupNames[0], 'group2' => $groupNames[1],
@@ -272,6 +280,9 @@ class AnalysisController extends Controller
         $n = count($differences);
         $dMean = Average::mean($differences);
         $dStd = Descriptive::standardDeviation($differences, Descriptive::SAMPLE);
+        if ($dStd <= 1e-12) {
+            return back()->withErrors(['column_1' => 'Selisih pasangan data bernilai konstan (variansi = 0).']);
+        }
         $se = $dStd / sqrt($n);
         $t = $dMean / $se;
         $df = $n - 1;
@@ -341,6 +352,9 @@ class AnalysisController extends Controller
         }
         $dfB = $k - 1; $dfW = $N - $k;
         $msb = $ssb / $dfB; $msw = $ssw / $dfW;
+        if ($msw <= 1e-12) {
+            return back()->withErrors(['column_value' => 'Variansi dalam kelompok (Within-group variance) bernilai 0.']);
+        }
         $f = $msb / $msw;
         $pValue = $this->fPValue($f, $dfB, $dfW);
         $result = [
@@ -511,7 +525,10 @@ class AnalysisController extends Controller
             $ssXX += ($xValues[$i] - $meanX) ** 2;
             $ssXY += ($xValues[$i] - $meanX) * ($yValues[$i] - $meanY);
         }
-        $b1 = $ssXX > 0 ? $ssXY / $ssXX : 0;
+        if ($ssXX <= 1e-12) {
+            return back()->withErrors(['column_x' => 'Variabel X tidak memiliki variasi nilai (semua bernilai sama).']);
+        }
+        $b1 = $ssXY / $ssXX;
         $b0 = $meanY - $b1 * $meanX;
         $ssRes = 0; $ssTot = 0;
         for ($i = 0; $i < $n; $i++) {

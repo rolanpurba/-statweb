@@ -223,7 +223,19 @@ class DatasetController extends Controller
     public function destroy(Dataset $dataset)
     {
         if ($dataset->user_id !== Auth::id()) abort(403);
-        Storage::disk('local')->delete($dataset->file_path);
+
+        // Hapus file dataset mentah
+        if ($dataset->file_path) {
+            Storage::disk('local')->delete($dataset->file_path);
+        }
+
+        // Hapus semua file chart PNG terkait agar tidak menjadi zombie file di disk
+        foreach ($dataset->analysisResults as $analysis) {
+            if ($analysis->chart_path) {
+                Storage::disk('local')->delete($analysis->chart_path);
+            }
+        }
+
         $dataset->delete();
         return redirect()->route('datasets.index')
             ->with('success', 'Dataset berhasil dihapus.');

@@ -30,4 +30,9 @@ class User extends Authenticatable
             'is_guest' => 'boolean',
         ];
     }
+
+    public function datasets(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Dataset::class);
+    }
 }
