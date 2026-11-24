@@ -21,7 +21,7 @@
                 Riwayat Analisis
             </a>
             <a href="{{ route('analysis.create', $dataset->id) }}"
-               class="text-white px-3 py-1.5 text-xs font-medium rounded-lg transition" style="background: #0F2C59;">
+               class="bg-sw-navy hover:bg-sw-navy-light text-white px-3 py-1.5 text-xs font-medium rounded-lg transition shadow-sm">
                 Analisis Statistik
             </a>
         </div>
@@ -30,34 +30,33 @@
     {{-- Tab --}}
     <div class="flex gap-0">
         <button onclick="showTab('data')" id="tab-data"
-                class="tab-btn px-5 py-2 text-sm font-medium border-b-2 rounded-t-lg transition"
-                style="border-color: #F6C90E; color: #0F2C59; background: white;">
+                class="tab-btn px-5 py-2 text-sm font-semibold border-b-2 rounded-t-lg transition border-sw-gold text-sw-navy bg-white">
             Data View
         </button>
         <button onclick="showTab('variable')" id="tab-variable"
-                class="tab-btn px-5 py-2 text-sm font-medium border-b-2 border-transparent text-slate-400 bg-slate-50 rounded-t-lg transition">
+                class="tab-btn px-5 py-2 text-sm font-medium border-b-2 border-transparent text-slate-400 bg-slate-50 rounded-t-lg transition hover:text-slate-600">
             Variable View
         </button>
     </div>
 
     {{-- DATA VIEW --}}
-    <div id="panel-data" class="bg-white border border-slate-200 rounded-b-xl rounded-tr-xl p-5">
+    <div id="panel-data" class="bg-white border border-slate-200 rounded-b-xl rounded-tr-xl p-5 shadow-sm">
 
         <div class="flex justify-between items-center mb-4">
-            <p class="text-xs text-slate-400 sw-mono">
+            <p class="text-xs text-slate-400 font-mono">
                 {{ $dataRows->total() }} baris · Hal {{ $dataRows->currentPage() }}/{{ $dataRows->lastPage() }}
             </p>
             <button onclick="addRow()"
-                    class="text-white px-3 py-1.5 text-xs font-medium rounded-lg transition" style="background: #0F2C59;">
+                    class="bg-sw-navy hover:bg-sw-navy-light text-white px-3 py-1.5 text-xs font-medium rounded-lg transition shadow-sm">
                 + Tambah Baris
             </button>
         </div>
 
-        <div class="overflow-x-auto border border-slate-100 rounded-lg">
+        <div class="overflow-x-auto border border-slate-100 rounded-lg max-h-[600px] overflow-y-auto">
             <table class="min-w-full divide-y divide-slate-100 text-sm" id="dataTable">
-                <thead>
-                <tr class="bg-slate-50">
-                    <th class="px-3 py-2 text-left text-xs font-medium text-slate-400 w-12">#</th>
+                <thead class="sticky top-0 bg-slate-50 z-10 shadow-sm">
+                <tr>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-slate-400 w-12 bg-slate-50">#</th>
                     @foreach ($columns as $col)
                         <th class="px-3 py-2 text-left text-xs font-medium text-slate-500 whitespace-nowrap">
                             {{ $col->label ?: $col->column_name }}
@@ -152,7 +151,7 @@
                 </table>
             </div>
             <div class="mt-4">
-                <button type="submit" class="text-white px-4 py-2 rounded-lg text-sm font-medium transition" style="background: #0F2C59;">
+                <button type="submit" class="bg-sw-navy hover:bg-sw-navy-light text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm">
                     Simpan Perubahan
                 </button>
             </div>
@@ -164,10 +163,10 @@
             document.getElementById('panel-data').classList.toggle('hidden', tab !== 'data');
             document.getElementById('panel-variable').classList.toggle('hidden', tab !== 'variable');
             document.getElementById('tab-data').style.cssText = tab === 'data'
-                ? 'border-color: #F6C90E; color: #0F2C59; background: white; border-bottom-width: 2px;'
+                ? 'border-color: #F6C90E; color: #162032; background: white; border-bottom-width: 2px;'
                 : 'border-color: transparent; color: #94a3b8; background: #f8fafc; border-bottom-width: 2px;';
             document.getElementById('tab-variable').style.cssText = tab === 'variable'
-                ? 'border-color: #F6C90E; color: #0F2C59; background: white; border-bottom-width: 2px;'
+                ? 'border-color: #F6C90E; color: #162032; background: white; border-bottom-width: 2px;'
                 : 'border-color: transparent; color: #94a3b8; background: #f8fafc; border-bottom-width: 2px;';
         }
 

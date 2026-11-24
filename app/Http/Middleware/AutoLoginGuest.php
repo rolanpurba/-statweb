@@ -14,6 +14,11 @@ class AutoLoginGuest
 {
     public function handle(Request $request, Closure $next): Response
     {
+        // Jangan auto-login di rute autentikasi agar user bisa login / register akun
+        if ($request->is('login', 'register', 'forgot-password', 'reset-password*', 'confirm-password')) {
+            return $next($request);
+        }
+
         // Kalau user sudah login (baik guest atau akun asli), lanjut saja
         if (Auth::check()) {
             return $next($request);

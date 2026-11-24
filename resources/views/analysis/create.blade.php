@@ -16,17 +16,17 @@
     @endif
 
     @php
-        $card = 'bg-white rounded-xl border border-slate-200 p-5 mb-4';
+        $card = 'bg-white rounded-xl border border-slate-200 p-5 mb-4 shadow-sm';
         $label = 'block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5';
-        $select = 'w-full border-slate-300 rounded-lg text-sm focus:border-[#F6C90E] focus:ring-[#F6C90E]';
-        $btn = 'text-white px-4 py-2 rounded-lg text-sm font-medium transition w-full sm:w-auto';
+        $select = 'w-full border-slate-300 rounded-lg text-sm focus:border-sw-gold focus:ring-sw-gold transition';
+        $btn = 'bg-sw-navy hover:bg-sw-navy-light text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm w-full sm:w-auto';
     @endphp
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
         {{-- Statistik Deskriptif --}}
         <div class="{{ $card }}">
-            <h3 class="text-sm font-semibold text-slate-800 sw-display mb-1">Statistik Deskriptif</h3>
+            <h3 class="text-sm font-semibold text-slate-800 font-display mb-1">Statistik Deskriptif</h3>
             <p class="text-xs text-slate-400 mb-4">Mean, median, std dev, dll — untuk kolom numerik</p>
             @if ($numericColumns->isEmpty())
                 <p class="text-slate-400 text-sm">Dataset ini tidak memiliki kolom numerik.</p>
@@ -37,14 +37,14 @@
                         <option value="">-- Pilih Kolom Numerik --</option>
                         @foreach ($numericColumns as $col)<option value="{{ $col->column_name }}">{{ $col->column_name }}</option>@endforeach
                     </select>
-                    <button type="submit" class="{{ $btn }}" style="background: #0F2C59;">Hitung</button>
+                    <button type="submit" class="{{ $btn }}">Hitung</button>
                 </form>
             @endif
         </div>
 
         {{-- Distribusi Frekuensi --}}
         <div class="{{ $card }}">
-            <h3 class="text-sm font-semibold text-slate-800 sw-display mb-1">Distribusi Frekuensi</h3>
+            <h3 class="text-sm font-semibold text-slate-800 font-display mb-1">Distribusi Frekuensi</h3>
             <p class="text-xs text-slate-400 mb-4">Frekuensi tiap kategori — untuk kolom kategorik</p>
             @if ($categoricalColumns->isEmpty())
                 <p class="text-slate-400 text-sm">Dataset ini tidak memiliki kolom kategorik.</p>
@@ -55,14 +55,14 @@
                         <option value="">-- Pilih Kolom Kategorik --</option>
                         @foreach ($categoricalColumns as $col)<option value="{{ $col->column_name }}">{{ $col->column_name }}</option>@endforeach
                     </select>
-                    <button type="submit" class="{{ $btn }}" style="background: #0F2C59;">Hitung</button>
+                    <button type="submit" class="{{ $btn }}">Hitung</button>
                 </form>
             @endif
         </div>
 
         {{-- Scatter Plot --}}
         <div class="{{ $card }}">
-            <h3 class="text-sm font-semibold text-slate-800 sw-display mb-1">Scatter Plot</h3>
+            <h3 class="text-sm font-semibold text-slate-800 font-display mb-1">Scatter Plot</h3>
             <p class="text-xs text-slate-400 mb-4">Hubungan antara 2 kolom numerik</p>
             @if ($numericColumns->count() < 2)
                 <p class="text-slate-400 text-sm">Dibutuhkan minimal 2 kolom numerik.</p>
@@ -85,14 +85,14 @@
                             </select>
                         </div>
                     </div>
-                    <button type="submit" class="{{ $btn }}" style="background: #0F2C59;">Buat Scatter Plot</button>
+                    <button type="submit" class="{{ $btn }}">Buat Scatter Plot</button>
                 </form>
             @endif
         </div>
 
         {{-- Uji Normalitas --}}
         <div class="{{ $card }}">
-            <h3 class="text-sm font-semibold text-slate-800 sw-display mb-1">Uji Normalitas</h3>
+            <h3 class="text-sm font-semibold text-slate-800 font-display mb-1">Uji Normalitas</h3>
             <p class="text-xs text-slate-400 mb-4">Shapiro-Wilk (n&lt;50) / Kolmogorov-Smirnov (n≥50)</p>
             @if ($numericColumns->isEmpty())
                 <p class="text-slate-400 text-sm">Dataset ini tidak memiliki kolom numerik.</p>
@@ -103,14 +103,14 @@
                         <option value="">-- Pilih Kolom Numerik --</option>
                         @foreach ($numericColumns as $col)<option value="{{ $col->column_name }}">{{ $col->column_name }}</option>@endforeach
                     </select>
-                    <button type="submit" class="{{ $btn }}" style="background: #0F2C59;">Uji Normalitas</button>
+                    <button type="submit" class="{{ $btn }}">Uji Normalitas</button>
                 </form>
             @endif
         </div>
 
         {{-- Uji-t Satu Sampel --}}
         <div class="{{ $card }}">
-            <h3 class="text-sm font-semibold text-slate-800 sw-display mb-1">Uji-t Satu Sampel</h3>
+            <h3 class="text-sm font-semibold text-slate-800 font-display mb-1">Uji-t Satu Sampel</h3>
             <p class="text-xs text-slate-400 mb-4">Bandingkan rata-rata sampel dengan nilai tertentu</p>
             @if ($numericColumns->isEmpty())
                 <p class="text-slate-400 text-sm">Dataset ini tidak memiliki kolom numerik.</p>
@@ -130,14 +130,14 @@
                             <input type="number" name="test_value" step="any" required placeholder="75" class="{{ $select }}">
                         </div>
                     </div>
-                    <button type="submit" class="{{ $btn }}" style="background: #0F2C59;">Jalankan</button>
+                    <button type="submit" class="{{ $btn }}">Jalankan</button>
                 </form>
             @endif
         </div>
 
         {{-- Uji-t Independen --}}
         <div class="{{ $card }}">
-            <h3 class="text-sm font-semibold text-slate-800 sw-display mb-1">Uji-t Independen</h3>
+            <h3 class="text-sm font-semibold text-slate-800 font-display mb-1">Uji-t Independen</h3>
             <p class="text-xs text-slate-400 mb-4">Bandingkan 2 kelompok berbeda (tepat 2 kategori)</p>
             @if ($numericColumns->isEmpty() || $categoricalColumns->isEmpty())
                 <p class="text-slate-400 text-sm">Butuh minimal 1 kolom numerik & 1 kategorik.</p>
@@ -160,14 +160,14 @@
                             </select>
                         </div>
                     </div>
-                    <button type="submit" class="{{ $btn }}" style="background: #0F2C59;">Jalankan</button>
+                    <button type="submit" class="{{ $btn }}">Jalankan</button>
                 </form>
             @endif
         </div>
 
         {{-- Uji-t Berpasangan --}}
         <div class="{{ $card }}">
-            <h3 class="text-sm font-semibold text-slate-800 sw-display mb-1">Uji-t Berpasangan</h3>
+            <h3 class="text-sm font-semibold text-slate-800 font-display mb-1">Uji-t Berpasangan</h3>
             <p class="text-xs text-slate-400 mb-4">2 pengukuran pada subjek yang sama</p>
             @if ($numericColumns->count() < 2)
                 <p class="text-slate-400 text-sm">Dibutuhkan minimal 2 kolom numerik.</p>
@@ -190,14 +190,14 @@
                             </select>
                         </div>
                     </div>
-                    <button type="submit" class="{{ $btn }}" style="background: #0F2C59;">Jalankan</button>
+                    <button type="submit" class="{{ $btn }}">Jalankan</button>
                 </form>
             @endif
         </div>
 
         {{-- ANOVA --}}
         <div class="{{ $card }}">
-            <h3 class="text-sm font-semibold text-slate-800 sw-display mb-1">One-Way ANOVA</h3>
+            <h3 class="text-sm font-semibold text-slate-800 font-display mb-1">One-Way ANOVA</h3>
             <p class="text-xs text-slate-400 mb-4">Bandingkan rata-rata 3+ kelompok sekaligus</p>
             @if ($numericColumns->isEmpty() || $categoricalColumns->isEmpty())
                 <p class="text-slate-400 text-sm">Butuh minimal 1 kolom numerik & 1 kategorik.</p>
@@ -220,14 +220,14 @@
                             </select>
                         </div>
                     </div>
-                    <button type="submit" class="{{ $btn }}" style="background: #0F2C59;">Jalankan ANOVA</button>
+                    <button type="submit" class="{{ $btn }}">Jalankan ANOVA</button>
                 </form>
             @endif
         </div>
 
         {{-- Korelasi --}}
         <div class="{{ $card }}">
-            <h3 class="text-sm font-semibold text-slate-800 sw-display mb-1">Korelasi</h3>
+            <h3 class="text-sm font-semibold text-slate-800 font-display mb-1">Korelasi</h3>
             <p class="text-xs text-slate-400 mb-4">Pearson atau Spearman antara 2 kolom numerik</p>
             @if ($numericColumns->count() < 2)
                 <p class="text-slate-400 text-sm">Dibutuhkan minimal 2 kolom numerik.</p>
@@ -258,14 +258,14 @@
                             <input type="radio" name="method" value="spearman" class="focus:ring-[#F6C90E]"> Spearman
                         </label>
                     </div>
-                    <button type="submit" class="{{ $btn }}" style="background: #0F2C59;">Hitung Korelasi</button>
+                    <button type="submit" class="{{ $btn }}">Hitung Korelasi</button>
                 </form>
             @endif
         </div>
 
         {{-- Chi-square --}}
         <div class="{{ $card }}">
-            <h3 class="text-sm font-semibold text-slate-800 sw-display mb-1">Chi-square Test</h3>
+            <h3 class="text-sm font-semibold text-slate-800 font-display mb-1">Chi-square Test</h3>
             <p class="text-xs text-slate-400 mb-4">Hubungan antara 2 variabel kategorik</p>
             @if ($categoricalColumns->count() < 2)
                 <p class="text-slate-400 text-sm">Dibutuhkan minimal 2 kolom kategorik.</p>
@@ -288,14 +288,14 @@
                             </select>
                         </div>
                     </div>
-                    <button type="submit" class="{{ $btn }}" style="background: #0F2C59;">Jalankan</button>
+                    <button type="submit" class="{{ $btn }}">Jalankan</button>
                 </form>
             @endif
         </div>
 
         {{-- Regresi Sederhana --}}
         <div class="{{ $card }}">
-            <h3 class="text-sm font-semibold text-slate-800 sw-display mb-1">Regresi Linear Sederhana</h3>
+            <h3 class="text-sm font-semibold text-slate-800 font-display mb-1">Regresi Linear Sederhana</h3>
             <p class="text-xs text-slate-400 mb-4">1 variabel X memprediksi 1 variabel Y</p>
             @if ($numericColumns->count() < 2)
                 <p class="text-slate-400 text-sm">Dibutuhkan minimal 2 kolom numerik.</p>
@@ -318,14 +318,14 @@
                             </select>
                         </div>
                     </div>
-                    <button type="submit" class="{{ $btn }}" style="background: #0F2C59;">Jalankan</button>
+                    <button type="submit" class="{{ $btn }}">Jalankan</button>
                 </form>
             @endif
         </div>
 
         {{-- Regresi Berganda --}}
         <div class="{{ $card }}">
-            <h3 class="text-sm font-semibold text-slate-800 sw-display mb-1">Regresi Linear Berganda</h3>
+            <h3 class="text-sm font-semibold text-slate-800 font-display mb-1">Regresi Linear Berganda</h3>
             <p class="text-xs text-slate-400 mb-4">2+ variabel X memprediksi 1 variabel Y</p>
             @if ($numericColumns->count() < 3)
                 <p class="text-slate-400 text-sm">Dibutuhkan minimal 3 kolom numerik.</p>
@@ -350,7 +350,7 @@
                             @endforeach
                         </div>
                     </div>
-                    <button type="submit" class="{{ $btn }}" style="background: #0F2C59;">Jalankan</button>
+                    <button type="submit" class="{{ $btn }}">Jalankan</button>
                 </form>
             @endif
         </div>

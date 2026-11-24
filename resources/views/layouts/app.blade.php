@@ -14,15 +14,8 @@
 
     <style>
         :root {
-            --sw-navy: #162032;
-            --sw-gold: #F6C90E;
-            --sw-bg: #F7F9FA;
-            --sw-border: #E2E8F0;
             --sidebar-width: 256px;
         }
-        body { font-family: 'Inter', sans-serif; background: var(--sw-bg); }
-        .sw-display { font-family: 'Space Grotesk', sans-serif; }
-        .sw-mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
 
         html { -webkit-text-size-adjust: 100%; }
 
@@ -49,36 +42,30 @@
         }
     </style>
 </head>
-<body class="antialiased">
+<body class="bg-sw-bg font-sans antialiased">
 <div class="min-h-screen flex">
 
     {{-- SIDEBAR (Desktop) --}}
-    <aside class="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0" style="background: #162032; z-index: 40;">
+    <aside class="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-sw-navy z-40">
         <div class="px-6 py-5 border-b border-white/10">
-            <a href="{{ route('dashboard') }}" class="flex items-center gap-2.5">
-                <div class="w-8 h-8 rounded-md flex items-center justify-center sw-mono font-bold text-sm" style="background: #f8f8f6; color: #162032;">
+            <a href="{{ route('dashboard') }}" class="flex items-center gap-2.5 group">
+                <div class="w-8 h-8 rounded-md flex items-center justify-center font-mono font-bold text-sm bg-white/10 text-sw-gold border border-white/10 group-hover:bg-white/15 transition">
                     Σ
                 </div>
-                <span class="sw-display font-semibold text-lg tracking-tight text-white">StatWeb</span>
+                <span class="font-display font-semibold text-lg tracking-tight text-white">StatWeb</span>
             </a>
         </div>
 
         <nav class="flex-1 px-3 py-4 space-y-1">
             <a href="{{ route('dashboard') }}"
-               class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition"
-               style="{{ request()->routeIs('dashboard') ? 'background: rgba(246,201,14,0.15); color: #F6C90E;' : 'color: rgba(255,255,255,0.6);' }}"
-               onmouseover="if(!this.style.background.includes('F6C90E')) { this.style.color='rgba(255,255,255,0.9)'; this.style.background='rgba(255,255,255,0.05)'; }"
-               onmouseout="if(!this.style.background.includes('F6C90E')) { this.style.color='rgba(255,255,255,0.6)'; this.style.background=''; }">
+               class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition {{ request()->routeIs('dashboard') ? 'bg-sw-gold/15 text-sw-gold font-semibold' : 'text-white/60 hover:text-white/90 hover:bg-white/5' }}">
                 <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                 </svg>
                 Dashboard
             </a>
             <a href="{{ route('datasets.index') }}"
-               class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition"
-               style="{{ request()->routeIs('datasets.*') || request()->routeIs('analysis.*') ? 'background: rgba(246,201,14,0.15); color: #F6C90E;' : 'color: rgba(255,255,255,0.6);' }}"
-               onmouseover="if(!this.style.background.includes('F6C90E')) { this.style.color='rgba(255,255,255,0.9)'; this.style.background='rgba(255,255,255,0.05)'; }"
-               onmouseout="if(!this.style.background.includes('F6C90E')) { this.style.color='rgba(255,255,255,0.6)'; this.style.background=''; }">
+               class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition {{ request()->routeIs('datasets.*') || request()->routeIs('analysis.*') ? 'bg-sw-gold/15 text-sw-gold font-semibold' : 'text-white/60 hover:text-white/90 hover:bg-white/5' }}">
                 <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
                 </svg>
@@ -87,9 +74,9 @@
         </nav>
 
         <div class="px-3 py-4 border-t border-white/10">
-            <div class="px-3 py-2 text-xs" style="color: rgba(255,255,255,0.4);">
+            <div class="px-3 py-2 text-xs text-white/40">
                 Masuk sebagai
-                <div class="font-medium sw-mono truncate" style="color: rgba(255,255,255,0.7);">{{ Auth::user()->name }}</div>
+                <div class="font-medium font-mono text-white/80 truncate mt-0.5">{{ Auth::user()->name }}</div>
             </div>
         </div>
     </aside>
@@ -114,38 +101,36 @@
                         </svg>
                     </button>
                     <div class="flex items-center gap-2">
-                        <div class="w-6 h-6 rounded flex items-center justify-center sw-mono font-bold text-xs" style="background: #162032; color: #F6C90E;">Σ</div>
-                        <span class="sw-display font-semibold text-slate-800">StatWeb</span>
+                        <div class="w-6 h-6 rounded flex items-center justify-center font-mono font-bold text-xs bg-sw-navy text-sw-gold">Σ</div>
+                        <span class="font-display font-semibold text-slate-800">StatWeb</span>
                     </div>
                 </div>
 
                 {{-- Desktop: page title --}}
                 <div class="hidden lg:block">
                     @isset($header)
-                        <div class="sw-display font-semibold text-slate-800 text-lg">{{ $header }}</div>
+                        <div class="font-display font-semibold text-slate-800 text-lg">{{ $header }}</div>
                     @endisset
                 </div>
 
                 <div class="flex items-center gap-3">
-                    <span class="hidden sm:inline text-xs text-slate-400 sw-mono">{{ Auth::user()->name }}</span>
+                    <span class="hidden sm:inline text-xs text-slate-400 font-mono">{{ Auth::user()->name }}</span>
                 </div>
             </div>
 
             {{-- Mobile dropdown nav (melayang di bawah header) --}}
             <div id="mobile-nav" class="hidden lg:hidden absolute left-0 right-0 top-full bg-white border-b border-slate-200 shadow-lg px-4 py-3 space-y-1">
                 <a href="{{ route('dashboard') }}"
-                   class="block px-3 py-3 rounded-lg text-sm font-medium {{ request()->routeIs('dashboard') ? 'text-white' : 'text-slate-600' }}"
-                   style="{{ request()->routeIs('dashboard') ? 'background: #0F2C59;' : '' }}">
+                   class="block px-3 py-3 rounded-lg text-sm font-medium transition {{ request()->routeIs('dashboard') ? 'bg-sw-navy text-white' : 'text-slate-600 hover:bg-slate-50' }}">
                     Dashboard
                 </a>
                 <a href="{{ route('datasets.index') }}"
-                   class="block px-3 py-3 rounded-lg text-sm font-medium {{ request()->routeIs('datasets.*') || request()->routeIs('analysis.*') ? 'text-white' : 'text-slate-600' }}"
-                   style="{{ request()->routeIs('datasets.*') || request()->routeIs('analysis.*') ? 'background: #0F2C59;' : '' }}">
+                   class="block px-3 py-3 rounded-lg text-sm font-medium transition {{ request()->routeIs('datasets.*') || request()->routeIs('analysis.*') ? 'bg-sw-navy text-white' : 'text-slate-600 hover:bg-slate-50' }}">
                     Dataset
                 </a>
                 <div class="px-3 pt-3 mt-2 border-t border-slate-100 text-xs text-slate-400">
                     Masuk sebagai
-                    <span class="sw-mono text-slate-500 break-all">{{ Auth::user()->name }}</span>
+                    <span class="font-mono text-slate-500 break-all">{{ Auth::user()->name }}</span>
                 </div>
             </div>
         </header>
@@ -153,7 +138,7 @@
         {{-- Mobile page header --}}
         @isset($header)
             <div class="lg:hidden px-4 pt-4">
-                <div class="sw-display font-semibold text-slate-800 text-lg">{{ $header }}</div>
+                <div class="font-display font-semibold text-slate-800 text-lg">{{ $header }}</div>
             </div>
         @endisset
 

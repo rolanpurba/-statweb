@@ -11,8 +11,22 @@ export default {
 
     theme: {
         extend: {
+            colors: {
+                'sw-navy': {
+                    DEFAULT: '#162032',
+                    dark: '#0F172A',
+                    light: '#1E293B',
+                },
+                'sw-gold': {
+                    DEFAULT: '#F6C90E',
+                    hover: '#E5B800',
+                },
+                'sw-bg': '#F7F9FA',
+            },
             fontFamily: {
-                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
+                sans: ['Inter', ...defaultTheme.fontFamily.sans],
+                display: ['Space Grotesk', 'sans-serif'],
+                mono: ['JetBrains Mono', ...defaultTheme.fontFamily.mono],
             },
         },
     },

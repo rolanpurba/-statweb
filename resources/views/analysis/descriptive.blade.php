@@ -40,8 +40,7 @@
             <h3 class="text-sm font-semibold text-slate-800 sw-display">Histogram</h3>
             @if ($latestResult)
                 <button onclick="exportPDF()" id="exportBtn"
-                        class="text-white px-3 py-1.5 text-xs font-medium rounded-lg transition flex items-center gap-2"
-                        style="background: #0F2C59;">
+                        class="bg-sw-navy hover:bg-sw-navy-light text-white px-3 py-1.5 text-xs font-medium rounded-lg transition flex items-center gap-2 shadow-sm">
                     <span id="exportLabel">Export PDF</span>
                 </button>
             @endif
